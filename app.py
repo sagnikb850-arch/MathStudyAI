@@ -825,7 +825,7 @@ def show_group2_learning():
                 )
                 
                 with st.chat_message("assistant"):
-                    st.markdown(response['answer'])
+                    render_latex_content(response['answer'])
         
         st.rerun()
     
