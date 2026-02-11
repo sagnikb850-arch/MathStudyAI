@@ -59,6 +59,27 @@ final_questions = questions_data['final_assessment']
 # Initialize storage
 storage = DataStorage('data')
 
+# Helper function to render LaTeX expressions properly
+def render_latex_content(text):
+    """
+    Render text with LaTeX expressions using st.latex() for display math
+    and proper formatting for inline math
+    """
+    import re
+    
+    # Split by display math ($$...$$)
+    display_math_pattern = r'\$\$(.*?)\$\$'
+    parts = re.split(display_math_pattern, text, flags=re.DOTALL)
+    
+    for i, part in enumerate(parts):
+        if i % 2 == 0:  # Regular text with possible inline math
+            if part.strip():
+                # For inline math, st.markdown handles it well when properly formatted
+                st.markdown(part, unsafe_allow_html=True)
+        else:  # Display math content
+            if part.strip():
+                st.latex(part.strip())
+
 # Initialize agents (lazy load)
 @st.cache_resource
 def get_assessment_analyzer():
@@ -554,7 +575,7 @@ def show_pre_assessment():
         
         for i, question in enumerate(pre_questions):
             st.subheader(f"Question {i+1}")
-            st.markdown(question['question'])
+            render_latex_content(question['question'])
             
             # Both groups now use text input for complex problems
             answer = st.text_area(
@@ -686,7 +707,7 @@ def show_group1_learning():
             # Display chat history for this concept
             for msg in st.session_state.concept_chats[concept_key]:
                 with st.chat_message(msg['role']):
-                    st.markdown(msg['content'])
+                    render_latex_content(msg['content'])
             
             # Chat input for this concept
             if len(st.session_state.concept_chats[concept_key]) > 0:
@@ -760,7 +781,7 @@ def show_group2_learning():
     
     for msg in st.session_state.chat_history:
         with st.chat_message(msg['role']):
-            st.markdown(msg['content'])
+            render_latex_content(msg['content'])
     
     # Chat input
     user_input = st.chat_input("Ask a question about trigonometry...")
@@ -820,7 +841,7 @@ def show_final_assessment():
         
         for i, question in enumerate(final_questions):
             st.subheader(f"Question {i+1}")
-            st.markdown(question['question'])
+            render_latex_content(question['question'])
             
             answer = st.radio(
                 "Select your answer:",
