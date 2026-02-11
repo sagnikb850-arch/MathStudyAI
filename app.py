@@ -611,9 +611,9 @@ def show_learning():
 
 
 def show_group1_learning():
-    """Customized Tutor for Group 1"""
+    """Customized Tutor for Group 1 - Interactive Chat Interface"""
     st.header("👨‍🏫 Learn with Customized AI Tutor")
-    st.write("The AI tutor will guide you through these concepts based on your needs.")
+    st.write("The AI tutor will guide you through concepts using Socratic questioning. Respond to each question to continue learning!")
     
     # Get pre-assessment analysis
     analysis = st.session_state.get('pre_assessment_analysis', {})
@@ -625,44 +625,96 @@ def show_group1_learning():
         with col2:
             st.metric("Difficulty Level", analysis.get('difficulty_level', 'Unknown'))
     
-    # Learning questions with tutor
-    tutor = get_customized_tutor()
+    # Initialize tutor in session state
+    if 'tutor' not in st.session_state:
+        st.session_state.tutor = get_customized_tutor()
     
+    # Initialize concept chat history
+    if 'concept_chats' not in st.session_state:
+        st.session_state.concept_chats = {}
+    
+    # Learning concepts - each with its own chat
     for question in learning_questions:
+        concept_id = question['id']
+        concept_key = f"chat_{concept_id}"
+        
         with st.expander(f"📖 {question['concept']} - {question['question']}", expanded=False):
-            # Get tutor explanation
-            if st.button(f"Get Explanation", key=f"explain_{question['id']}"):
-                with st.spinner("AI Tutor is preparing explanation..."):
-                    explanation = tutor.teach_concept(
-                        question['id'],
-                        question,
-                        student_level="intermediate"
-                    )
-                    
-                    if explanation['success']:
-                        st.markdown(explanation['explanation'])
-                        
-                        # Save learning progress
-                        storage.save_learning_progress(
-                            st.session_state.student_id,
-                            {
-                                'question_id': question['id'],
-                                'concept': question['concept'],
-                                'accessed_at': datetime.now().isoformat()
-                            }
+            # Initialize chat history for this concept
+            if concept_key not in st.session_state.concept_chats:
+                st.session_state.concept_chats[concept_key] = []
+            
+            # Start learning button
+            if len(st.session_state.concept_chats[concept_key]) == 0:
+                if st.button(f"Start Learning: {question['concept']}", key=f"start_{concept_id}"):
+                    with st.spinner("AI Tutor is preparing to guide you..."):
+                        explanation = st.session_state.tutor.teach_concept(
+                            question['id'],
+                            question,
+                            student_level="intermediate"
                         )
+                        
+                        if explanation['success']:
+                            st.session_state.concept_chats[concept_key].append({
+                                'role': 'assistant',
+                                'content': explanation['explanation']
+                            })
+                            
+                            # Save learning progress
+                            storage.save_learning_progress(
+                                st.session_state.student_id,
+                                {
+                                    'question_id': question['id'],
+                                    'concept': question['concept'],
+                                    'accessed_at': datetime.now().isoformat()
+                                }
+                            )
+                            st.rerun()
             
-            # Student can ask questions
-            st.write("---")
-            st.write("**Have a Question?**")
-            student_q = st.text_input(f"Ask about {question['concept']}", key=f"ask_{question['id']}")
+            # Display chat history for this concept
+            for msg in st.session_state.concept_chats[concept_key]:
+                with st.chat_message(msg['role']):
+                    st.markdown(msg['content'])
             
-            if student_q:
-                if st.button(f"Get Answer", key=f"answer_{question['id']}"):
-                    with st.spinner("AI Tutor is thinking..."):
-                        response = tutor.answer_student_question(student_q)
+            # Chat input for this concept
+            if len(st.session_state.concept_chats[concept_key]) > 0:
+                user_response = st.chat_input(
+                    f"Your response about {question['concept']}...",
+                    key=f"input_{concept_id}"
+                )
+                
+                if user_response:
+                    # Add user message to chat
+                    st.session_state.concept_chats[concept_key].append({
+                        'role': 'user',
+                        'content': user_response
+                    })
+                    
+                    # Get tutor's response
+                    with st.spinner("AI Tutor is analyzing your response..."):
+                        response = st.session_state.tutor.answer_student_question(
+                            user_response,
+                            student_previous_response=user_response
+                        )
+                        
                         if response['success']:
-                            st.markdown(response['answer'])
+                            st.session_state.concept_chats[concept_key].append({
+                                'role': 'assistant',
+                                'content': response['answer']
+                            })
+                            
+                            # Save interaction
+                            storage.save_learning_progress(
+                                st.session_state.student_id,
+                                {
+                                    'question_id': question['id'],
+                                    'concept': question['concept'],
+                                    'student_response': user_response,
+                                    'tutor_response': response['answer'],
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                            )
+                    
+                    st.rerun()
     
     st.divider()
     
