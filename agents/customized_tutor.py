@@ -6,6 +6,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from typing import Dict, Any, List, Optional
 import json
+import re
+import sympy as sp
+from sympy import latex, sympify, sin, cos, tan, pi, sqrt
 from config.settings import OPENAI_API_KEY, MODEL_NAME, MAX_TOKENS, TEMPERATURE
 
 
@@ -227,19 +230,59 @@ Remember: Your success is measured by student discovery, not by providing answer
             {"role": "system", "content": self.SYSTEM_PROMPT}
         ]
     
+    def _format_with_sympy(self, text: str) -> str:
+        """
+        Post-process text to ensure all mathematical expressions are in LaTeX format
+        Uses SymPy to convert common mathematical patterns to LaTeX
+        """
+        # Already properly formatted expressions (don't re-process)
+        if '$' in text and ('\\sin' in text or '\\cos' in text or '\\tan' in text or '\\frac' in text):
+            return text
+        
+        # Common patterns to convert to LaTeX
+        replacements = [
+            # Trig functions
+            (r'\bsin\s*\(([^)]+)\)', r'$\\sin(\1)$'),
+            (r'\bcos\s*\(([^)]+)\)', r'$\\cos(\1)$'),
+            (r'\btan\s*\(([^)]+)\)', r'$\\tan(\1)$'),
+            (r'\barcsin\s*\(([^)]+)\)', r'$\\arcsin(\1)$'),
+            (r'\barccos\s*\(([^)]+)\)', r'$\\arccos(\1)$'),
+            (r'\barctan\s*\(([^)]+)\)', r'$\\arctan(\1)$'),
+            # Greek letters
+            (r'\btheta\b', r'$\\theta$'),
+            (r'\balpha\b', r'$\\alpha$'),
+            (r'\bbeta\b', r'$\\beta$'),
+            (r'\bpi\b', r'$\\pi$'),
+            # Degree symbol
+            (r'(\d+)\s*°', r'$\1^\\circ$'),
+            (r'(\d+)\s*degrees', r'$\1^\\circ$'),
+            # Fractions like 1/2
+            (r'(\d+)/(\d+)', r'$\\frac{\1}{\2}$'),
+            # Square root
+            (r'\bsqrt\s*\(([^)]+)\)', r'$\\sqrt{\1}$'),
+            # Equations like x = 5
+            (r'([a-z])\s*=\s*(\d+\.?\d*)', r'$\1 = \2$'),
+        ]
+        
+        result = text
+        for pattern, replacement in replacements:
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+        
+        return result
+    
     def _use_sympy_tool(self, expression: str) -> str:
         """
-        Simulate SymPy tool for symbolic mathematics
-        In production, this would actually use sympy library
+        Use SymPy tool for symbolic mathematics and convert to LaTeX
         """
         try:
-            import sympy as sp
             # Parse and evaluate using sympy
             result = sp.simplify(expression)
-            return f"SymPy shows: {result}"
+            # Convert to LaTeX
+            latex_result = latex(result)
+            return f"SymPy shows: ${latex_result}$"
         except:
-            # Fallback if sympy not available
-            return f"Mathematical analysis of: {expression} (SymPy helps us verify identities and simplify expressions)"
+            # Fallback if parsing fails
+            return f"Mathematical analysis of: ${expression}$ (SymPy helps us verify identities and simplify expressions)"
     
     def _describe_graph(self, function: str, range_info: str) -> str:
         """
@@ -425,7 +468,8 @@ STOP HERE and wait for their response before continuing.
             # Get AI response with ReAct reasoning
             response = self.llm.invoke(self.messages[-5:] if len(self.messages) > 5 else self.messages)
             
-            response_text = response.content
+            # Apply SymPy post-processing to ensure LaTeX formatting
+            response_text = self._format_with_sympy(response.content)
             
             # Store in history
             self.messages.append({"role": "assistant", "content": response_text})

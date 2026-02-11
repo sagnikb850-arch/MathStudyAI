@@ -5,6 +5,9 @@ Provides general Q&A without customization
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from typing import Dict, Any, List
+import re
+import sympy as sp
+from sympy import latex
 from config.settings import OPENAI_API_KEY, MODEL_NAME, MAX_TOKENS, TEMPERATURE
 
 
@@ -55,6 +58,46 @@ Be friendly and patient.
         )
         self.chat_history: List[Dict[str, str]] = []
     
+    def _format_with_sympy(self, text: str) -> str:
+        """
+        Post-process text to ensure all mathematical expressions are in LaTeX format
+        Uses SymPy to convert common mathematical patterns to LaTeX
+        """
+        # Already properly formatted expressions (don't re-process)
+        if '$' in text and ('\\sin' in text or '\\cos' in text or '\\tan' in text or '\\frac' in text):
+            return text
+        
+        # Common patterns to convert to LaTeX
+        replacements = [
+            # Trig functions
+            (r'\bsin\s*\(([^)]+)\)', r'$\\sin(\1)$'),
+            (r'\bcos\s*\(([^)]+)\)', r'$\\cos(\1)$'),
+            (r'\btan\s*\(([^)]+)\)', r'$\\tan(\1)$'),
+            (r'\barcsin\s*\(([^)]+)\)', r'$\\arcsin(\1)$'),
+            (r'\barccos\s*\(([^)]+)\)', r'$\\arccos(\1)$'),
+            (r'\barctan\s*\(([^)]+)\)', r'$\\arctan(\1)$'),
+            # Greek letters
+            (r'\btheta\b', r'$\\theta$'),
+            (r'\balpha\b', r'$\\alpha$'),
+            (r'\bbeta\b', r'$\\beta$'),
+            (r'\bpi\b', r'$\\pi$'),
+            # Degree symbol
+            (r'(\d+)\s*°', r'$\1^\\circ$'),
+            (r'(\d+)\s*degrees', r'$\1^\\circ$'),
+            # Fractions like 1/2
+            (r'(\d+)/(\d+)', r'$\\frac{\1}{\2}$'),
+            # Square root
+            (r'\bsqrt\s*\(([^)]+)\)', r'$\\sqrt{\1}$'),
+            # Equations like x = 5
+            (r'([a-z])\s*=\s*(\d+\.?\d*)', r'$\1 = \2$'),
+        ]
+        
+        result = text
+        for pattern, replacement in replacements:
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+        
+        return result
+    
     def ask_question(self, user_question: str) -> Dict[str, Any]:
         """
         Answer a question from the student
@@ -83,6 +126,9 @@ Be friendly and patient.
             message = HumanMessage(content=conversation)
             response = self.llm.invoke([message])
             
+            # Apply SymPy post-processing to ensure LaTeX formatting
+            answer_text = self._format_with_sympy(response.content)
+            
             # Store in history
             self.chat_history.append({
                 "role": "user",
@@ -90,13 +136,13 @@ Be friendly and patient.
             })
             self.chat_history.append({
                 "role": "assistant",
-                "content": response.content
+                "content": answer_text
             })
             
             return {
                 "success": True,
                 "question": user_question,
-                "answer": response.content
+                "answer": answer_text
             }
         
         except Exception as e:
