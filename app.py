@@ -63,37 +63,31 @@ storage = DataStorage('data')
 def render_latex_content(text):
     """
     Render LaTeX as actual math symbols - NO LaTeX code visible
-    Converts $...$ and $$...$$ to rendered mathematical notation only
+    Uses Streamlit's native LaTeX rendering for all math expressions
     """
     import re
     
-    # First handle display math ($$...$$)
+    if not text or not text.strip():
+        return
+    
+    # First, handle display math ($$...$$) - these are centered equations
     display_math_pattern = r'\$\$(.*?)\$\$'
+    
+    # Split text into parts: [text, display_math, text, display_math, ...]
     parts = re.split(display_math_pattern, text, flags=re.DOTALL)
     
     for i, part in enumerate(parts):
-        if i % 2 == 1:  # This is display math content
-            if part.strip():
-                # Render with st.latex (shows math without $ signs)
-                st.latex(part.strip())
+        if not part.strip():
+            continue
+            
+        if i % 2 == 1:  # Display math content (between $$...$$)
+            # Render as centered equation using st.latex()
+            st.latex(part.strip())
         else:  # Regular text with possible inline math
+            # For inline math, use st.markdown() which natively supports LaTeX
+            # Streamlit automatically renders $...$ as math when using st.markdown()
             if part.strip():
-                # Now handle inline math ($...$) in this part
-                inline_math_pattern = r'\$([^\$]+)\$'
-                segments = re.split(inline_math_pattern, part)
-                
-                rendered_text = ""
-                for j, segment in enumerate(segments):
-                    if j % 2 == 1:  # Inline LaTeX content
-                        # Convert inline LaTeX to rendered form using st.latex in a small space
-                        # But for inline, we keep it in markdown which Streamlit renders
-                        rendered_text += f"${segment}$"
-                    else:  # Regular text
-                        rendered_text += segment
-                
-                if rendered_text.strip():
-                    # st.markdown with proper LaTeX support renders $ as math
-                    st.markdown(rendered_text)
+                st.markdown(part.strip(), unsafe_allow_html=False)
 
 # Initialize agents (lazy load)
 @st.cache_resource
