@@ -6,6 +6,11 @@ import streamlit as st
 import json
 import os
 import sys
+import pandas as pd
+try:
+    import plotly.graph_objects as go
+except ImportError:
+    pass  # Plotly is optional for basic functionality
 from datetime import datetime
 from pathlib import Path
 
@@ -38,6 +43,10 @@ if 'learning_done' not in st.session_state:
     st.session_state.learning_done = False
 if 'final_assessment_done' not in st.session_state:
     st.session_state.final_assessment_done = False
+if 'is_admin' not in st.session_state:
+    st.session_state.is_admin = False
+if 'admin_page' not in st.session_state:
+    st.session_state.admin_page = 'dashboard'
 
 # Load questions
 with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
@@ -64,10 +73,384 @@ def get_chatgpt_agent():
     return ChatGPTLikeAgent()
 
 # ============================================================================
+# ADMIN AUTHENTICATION
+# ============================================================================
+def show_admin_login():
+    """Admin login page"""
+    st.title("🔐 Admin Login")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.info("Enter admin credentials to access the dashboard")
+        
+        with st.form("admin_login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login", use_container_width=True)
+            
+            if submitted:
+                # Get admin credentials from secrets or env
+                admin_user = os.getenv('ADMIN_USERNAME', 'admin')
+                admin_pass = os.getenv('ADMIN_PASSWORD', 'admin123')
+                
+                if username == admin_user and password == admin_pass:
+                    st.session_state.is_admin = True
+                    st.session_state.current_page = 'admin_dashboard'
+                    st.success("✅ Login successful!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid credentials")
+        
+        st.divider()
+        
+        if st.button("← Back to Student Portal", use_container_width=True):
+            st.session_state.current_page = 'home'
+            st.rerun()
+
+
+# ============================================================================
+# ADMIN DASHBOARD
+# ============================================================================
+def show_admin_dashboard():
+    """Main admin dashboard with tabs"""
+    st.title("📊 Admin Dashboard")
+    
+    # Logout button in sidebar
+    with st.sidebar:
+        st.write("---")
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.is_admin = False
+            st.session_state.current_page = 'home'
+            st.rerun()
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Progress Report", "🏆 Comparison", "📝 Manage Questions", "💡 Practice Questions"])
+    
+    with tab1:
+        show_admin_progress()
+    
+    with tab2:
+        show_admin_comparison()
+    
+    with tab3:
+        show_admin_manage_questions()
+    
+    with tab4:
+        show_admin_practice_questions()
+
+
+def show_admin_progress():
+    """Show detailed student progress"""
+    st.header("Student Progress Tracking")
+    
+    # Load data
+    if os.path.exists('data/performance_ratings.csv'):
+        perf_df = pd.read_csv('data/performance_ratings.csv')
+        
+        if len(perf_df) > 0:
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_students = perf_df['student_id'].nunique()
+                st.metric("Total Students", total_students)
+            
+            with col2:
+                group1_count = len(perf_df[perf_df['group'] == '1']['student_id'].unique())
+                st.metric("Group 1 Students", group1_count)
+            
+            with col3:
+                group2_count = len(perf_df[perf_df['group'] == '2']['student_id'].unique())
+                st.metric("Group 2 Students", group2_count)
+            
+            with col4:
+                avg_score = perf_df['score_percentage'].mean()
+                st.metric("Overall Avg Score", f"{avg_score:.1f}%")
+            
+            st.divider()
+            
+            # Filter options
+            col1, col2 = st.columns(2)
+            with col1:
+                filter_group = st.selectbox("Filter by Group", ["All", "Group 1", "Group 2"])
+            with col2:
+                filter_type = st.selectbox("Assessment Type", ["All", "Pre-Assessment", "Final Assessment"])
+            
+            # Apply filters
+            filtered_df = perf_df.copy()
+            if filter_group != "All":
+                filtered_df = filtered_df[filtered_df['group'] == ('1' if filter_group == "Group 1" else '2')]
+            if filter_type != "All":
+                filtered_df = filtered_df[filtered_df['assessment_type'] == ('pre' if filter_type == "Pre-Assessment" else 'final')]
+            
+            # Display table
+            st.subheader("Student Performance Details")
+            display_df = filtered_df[['student_id', 'group', 'assessment_type', 'score_percentage', 'correct_answers', 'difficulty_level', 'timestamp']].copy()
+            display_df['group'] = display_df['group'].map({'1': 'Group 1 (Customized)', '2': 'Group 2 (ChatGPT)'})
+            display_df['assessment_type'] = display_df['assessment_type'].map({'pre': 'Pre-Assessment', 'final': 'Final Assessment'})
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Download button
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Data as CSV",
+                data=csv,
+                file_name=f"student_progress_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No student data available yet.")
+    else:
+        st.info("No data file found. Students need to complete assessments first.")
+
+
+def show_admin_comparison():
+    """Show detailed comparison between Group 1 and Group 2"""
+    st.header("Group Comparison Analysis")
+    
+    if os.path.exists('data/performance_ratings.csv'):
+        perf_df = pd.read_csv('data/performance_ratings.csv')
+        
+        if len(perf_df) > 0:
+            # Calculate comparison
+            comparison = storage.calculate_comparison()
+            
+            if comparison:
+                # Display winner
+                st.success(f"🏆 Winner: **{comparison['winner']}**")
+                st.write(comparison['analysis'])
+                
+                st.divider()
+                
+                # Metrics comparison
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("📊 Group 1 (Customized Tutor)")
+                    st.metric("Pre-Assessment Avg", f"{comparison['group1_avg_pre']:.1f}%")
+                    st.metric("Final Assessment Avg", f"{comparison['group1_avg_final']:.1f}%")
+                    st.metric("Improvement", f"{comparison['improvement_group1']:.1f}%", 
+                             delta=f"{comparison['improvement_group1']:.1f}%")
+                
+                with col2:
+                    st.subheader("💬 Group 2 (ChatGPT Interface)")
+                    st.metric("Pre-Assessment Avg", f"{comparison['group2_avg_pre']:.1f}%")
+                    st.metric("Final Assessment Avg", f"{comparison['group2_avg_final']:.1f}%")
+                    st.metric("Improvement", f"{comparison['improvement_group2']:.1f}%",
+                             delta=f"{comparison['improvement_group2']:.1f}%")
+                
+                st.divider()
+                
+                # Visualization
+                import plotly.graph_objects as go
+                
+                fig = go.Figure()
+                
+                fig.add_trace(go.Bar(
+                    name='Group 1 Pre',
+                    x=['Pre-Assessment'],
+                    y=[comparison['group1_avg_pre']],
+                    marker_color='lightblue'
+                ))
+                
+                fig.add_trace(go.Bar(
+                    name='Group 1 Final',
+                    x=['Final Assessment'],
+                    y=[comparison['group1_avg_final']],
+                    marker_color='blue'
+                ))
+                
+                fig.add_trace(go.Bar(
+                    name='Group 2 Pre',
+                    x=['Pre-Assessment'],
+                    y=[comparison['group2_avg_pre']],
+                    marker_color='lightcoral'
+                ))
+                
+                fig.add_trace(go.Bar(
+                    name='Group 2 Final',
+                    x=['Final Assessment'],
+                    y=[comparison['group2_avg_final']],
+                    marker_color='red'
+                ))
+                
+                fig.update_layout(
+                    title='Group Performance Comparison',
+                    barmode='group',
+                    yaxis_title='Average Score (%)',
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Not enough data to calculate comparison yet.")
+        else:
+            st.info("No data available yet.")
+    else:
+        st.info("No data file found. Students need to complete assessments first.")
+
+
+def show_admin_manage_questions():
+    """Manage assessment questions"""
+    st.header("Manage Question Sets")
+    
+    st.info("View and manage pre-assessment, learning, and final assessment questions.")
+    
+    question_type = st.selectbox(
+        "Select Question Set",
+        ["Pre-Assessment", "Learning Questions", "Final Assessment"]
+    )
+    
+    # Load current questions
+    with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
+        questions_data = json.load(f)
+    
+    if question_type == "Pre-Assessment":
+        questions = questions_data['pre_assessment']
+        key = 'pre_assessment'
+    elif question_type == "Learning Questions":
+        questions = questions_data['learning_questions']
+        key = 'learning_questions'
+    else:
+        questions = questions_data['final_assessment']
+        key = 'final_assessment'
+    
+    st.subheader(f"Current {question_type} Questions ({len(questions)} total)")
+    
+    # Display questions
+    for i, q in enumerate(questions):
+        with st.expander(f"Question {i+1}: {q.get('question', q.get('concept', 'N/A')[:50]}..."):
+            st.json(q)
+    
+    st.divider()
+    
+    # Add new question
+    st.subheader("➕ Add New Question")
+    
+    with st.form("add_question_form"):
+        if key in ['pre_assessment', 'final_assessment']:
+            new_q = st.text_area("Question Text")
+            opt1 = st.text_input("Option 1")
+            opt2 = st.text_input("Option 2")
+            opt3 = st.text_input("Option 3")
+            opt4 = st.text_input("Option 4")
+            correct = st.selectbox("Correct Answer", [opt1, opt2, opt3, opt4])
+            explanation = st.text_area("Explanation")
+        else:
+            new_q = st.text_area("Question Text")
+            concept = st.text_input("Concept Name")
+            hint = st.text_area("Hint/Teaching Point")
+        
+        if st.form_submit_button("Add Question"):
+            if key in ['pre_assessment', 'final_assessment']:
+                new_question = {
+                    "id": len(questions) + 1,
+                    "question": new_q,
+                    "options": [opt1, opt2, opt3, opt4],
+                    "correct_answer": correct,
+                    "explanation": explanation
+                }
+            else:
+                new_question = {
+                    "id": len(questions) + 1,
+                    "question": new_q,
+                    "concept": concept,
+                    "hint": hint
+                }
+            
+            questions_data[key].append(new_question)
+            
+            # Save back to file
+            with open('data/trigonometry_questions.json', 'w', encoding='utf-8') as f:
+                json.dump(questions_data, f, indent=2)
+            
+            st.success("✅ Question added successfully!")
+            st.rerun()
+
+
+def show_admin_practice_questions():
+    """Add practice questions for students"""
+    st.header("Practice Questions Management")
+    
+    st.info("Create practice questions that students from both groups can access during learning.")
+    
+    target_group = st.selectbox(
+        "Target Group",
+        ["Both Groups", "Group 1 Only", "Group 2 Only"]
+    )
+    
+    st.subheader("Create Practice Question")
+    
+    with st.form("practice_question_form"):
+        practice_q = st.text_area("Question Text", height=100)
+        practice_concept = st.text_input("Concept/Topic")
+        practice_difficulty = st.selectbox("Difficulty Level", ["Easy", "Medium", "Hard"])
+        practice_hint = st.text_area("Hint for Students", height=80)
+        practice_solution = st.text_area("Solution/Explanation", height=150)
+        
+        if st.form_submit_button("Save Practice Question"):
+            # Create practice questions file if doesn't exist
+            practice_file = 'data/practice_questions.json'
+            
+            if os.path.exists(practice_file):
+                with open(practice_file, 'r', encoding='utf-8') as f:
+                    practice_data = json.load(f)
+            else:
+                practice_data = []
+            
+            new_practice = {
+                "id": len(practice_data) + 1,
+                "question": practice_q,
+                "concept": practice_concept,
+                "difficulty": practice_difficulty,
+                "hint": practice_hint,
+                "solution": practice_solution,
+                "target_group": target_group,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            practice_data.append(new_practice)
+            
+            with open(practice_file, 'w', encoding='utf-8') as f:
+                json.dump(practice_data, f, indent=2)
+            
+            st.success("✅ Practice question saved successfully!")
+            st.rerun()
+    
+    # Show existing practice questions
+    st.divider()
+    st.subheader("Existing Practice Questions")
+    
+    practice_file = 'data/practice_questions.json'
+    if os.path.exists(practice_file):
+        with open(practice_file, 'r', encoding='utf-8') as f:
+            practice_data = json.load(f)
+        
+        if practice_data:
+            for pq in practice_data:
+                with st.expander(f"Q{pq['id']}: {pq['concept']} ({pq['difficulty']}) - {pq['target_group']}"):
+                    st.write(f"**Question:** {pq['question']}")
+                    st.write(f"**Hint:** {pq['hint']}")
+                    st.write(f"**Solution:** {pq['solution']}")
+        else:
+            st.info("No practice questions yet.")
+    else:
+        st.info("No practice questions file found.")
+
+
+# ============================================================================
 # PAGE: Home / Group Selection
 # ============================================================================
 def show_home():
     """Home page with group selection"""
+    
+    # Admin access button in sidebar
+    with st.sidebar:
+        st.write("---")
+        if st.button("🔐 Admin Login", use_container_width=True):
+            st.session_state.current_page = 'admin_login'
+            st.rerun()
+    
     col1, col2, col3 = st.columns(3)
     
     with col2:
@@ -528,6 +911,15 @@ def main():
     # Main content
     if st.session_state.current_page == 'home':
         show_home()
+    elif st.session_state.current_page == 'admin_login':
+        show_admin_login()
+    elif st.session_state.current_page == 'admin_dashboard':
+        if st.session_state.is_admin:
+            show_admin_dashboard()
+        else:
+            st.error("Unauthorized access. Please login first.")
+            st.session_state.current_page = 'admin_login'
+            st.rerun()
     elif st.session_state.current_page == 'register':
         show_registration()
     elif st.session_state.current_page == 'pre_assessment':
