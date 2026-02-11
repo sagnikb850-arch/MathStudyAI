@@ -218,7 +218,7 @@ def show_admin_comparison():
             if comparison:
                 # Display winner
                 st.success(f"🏆 Winner: **{comparison['winner']}**")
-                st.write(comparison['analysis'])
+                st.markdown(comparison['analysis'])
                 
                 st.divider()
                 
@@ -431,9 +431,9 @@ def show_admin_practice_questions():
         if practice_data:
             for pq in practice_data:
                 with st.expander(f"Q{pq['id']}: {pq['concept']} ({pq['difficulty']}) - {pq['target_group']}"):
-                    st.write(f"**Question:** {pq['question']}")
-                    st.write(f"**Hint:** {pq['hint']}")
-                    st.write(f"**Solution:** {pq['solution']}")
+                    st.markdown(f"**Question:** {pq['question']}")
+                    st.markdown(f"**Hint:** {pq['hint']}")
+                    st.markdown(f"**Solution:** {pq['solution']}")
         else:
             st.info("No practice questions yet.")
     else:
@@ -547,7 +547,7 @@ def show_pre_assessment():
         
         for i, question in enumerate(pre_questions):
             st.subheader(f"Question {i+1}")
-            st.write(question['question'])
+            st.markdown(question['question'])
             
             answer = st.radio(
                 "Select your answer:",
@@ -747,7 +747,7 @@ def show_group2_learning():
     
     for msg in st.session_state.chat_history:
         with st.chat_message(msg['role']):
-            st.write(msg['content'])
+            st.markdown(msg['content'])
     
     # Chat input
     user_input = st.chat_input("Ask a question about trigonometry...")
@@ -782,7 +782,7 @@ def show_group2_learning():
                 )
                 
                 with st.chat_message("assistant"):
-                    st.write(response['answer'])
+                    st.markdown(response['answer'])
         
         st.rerun()
     
@@ -807,7 +807,7 @@ def show_final_assessment():
         
         for i, question in enumerate(final_questions):
             st.subheader(f"Question {i+1}")
-            st.write(question['question'])
+            st.markdown(question['question'])
             
             answer = st.radio(
                 "Select your answer:",
@@ -897,11 +897,13 @@ def show_results():
     
     with col1:
         st.write("**Pre-Assessment Feedback**")
-        st.info(pre_analysis.get('detailed_feedback', 'No feedback available'))
+        with st.container(border=True):
+            st.markdown(pre_analysis.get('detailed_feedback', 'No feedback available'))
     
     with col2:
         st.write("**Final Assessment Feedback**")
-        st.success(final_analysis.get('detailed_feedback', 'No feedback available'))
+        with st.container(border=True):
+            st.markdown(final_analysis.get('detailed_feedback', 'No feedback available'))
     
     st.divider()
     
