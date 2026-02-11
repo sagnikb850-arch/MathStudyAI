@@ -1,0 +1,138 @@
+{
+  "pre_assessment": [
+    {
+      "id": 1,
+      "question": "What is the sine of 30 degrees?",
+      "options": ["0.5", "0.866", "1", "0"],
+      "correct_answer": "0.5",
+      "explanation": "sin(30°) = 1/2 = 0.5"
+    },
+    {
+      "id": 2,
+      "question": "What is the cosine of 60 degrees?",
+      "options": ["0.5", "0.866", "1", "0"],
+      "correct_answer": "0.5",
+      "explanation": "cos(60°) = 1/2 = 0.5"
+    },
+    {
+      "id": 3,
+      "question": "In a right triangle, if the angle is 45 degrees, what is the relationship between opposite and adjacent sides?",
+      "options": ["opposite > adjacent", "opposite = adjacent", "opposite < adjacent", "none"],
+      "correct_answer": "opposite = adjacent",
+      "explanation": "In a 45-45-90 triangle, the opposite and adjacent sides are equal"
+    },
+    {
+      "id": 4,
+      "question": "What is tan(45°)?",
+      "options": ["0", "1", "√3", "undefined"],
+      "correct_answer": "1",
+      "explanation": "tan(45°) = 1 because sin(45°) = cos(45°)"
+    },
+    {
+      "id": 5,
+      "question": "What is the relationship: sin²(θ) + cos²(θ) = ?",
+      "options": ["0", "1", "2", "tan(θ)"],
+      "correct_answer": "1",
+      "explanation": "This is the fundamental trigonometric identity"
+    }
+  ],
+  "learning_questions": [
+    {
+      "id": 1,
+      "question": "What does SOH-CAH-TOA mean?",
+      "concept": "Basic Trigonometric Ratios",
+      "hint": "Sine = Opposite/Hypotenuse, Cosine = Adjacent/Hypotenuse, Tangent = Opposite/Adjacent"
+    },
+    {
+      "id": 2,
+      "question": "How to find the angle when you know the sine value?",
+      "concept": "Inverse Trigonometric Functions",
+      "hint": "Use inverse sine (arcsin or sin⁻¹) function"
+    },
+    {
+      "id": 3,
+      "question": "What is the period of sine and cosine functions?",
+      "concept": "Periodic Functions",
+      "hint": "Both sine and cosine have a period of 2π radians (360°)"
+    },
+    {
+      "id": 4,
+      "question": "How are sine and cosine functions related?",
+      "concept": "Function Relationships",
+      "hint": "cos(θ) = sin(90° - θ), they are complementary"
+    },
+    {
+      "id": 5,
+      "question": "What is the Pythagorean identity?",
+      "concept": "Fundamental Identity",
+      "hint": "sin²(θ) + cos²(θ) = 1"
+    },
+    {
+      "id": 6,
+      "question": "How to convert degrees to radians?",
+      "concept": "Angle Conversion",
+      "hint": "Radians = Degrees × (π/180)"
+    },
+    {
+      "id": 7,
+      "question": "What are the special angles in trigonometry?",
+      "concept": "Special Angles",
+      "hint": "0°, 30°, 45°, 60°, 90° and their trigonometric values"
+    },
+    {
+      "id": 8,
+      "question": "How to use trigonometry to find height of a building?",
+      "concept": "Real-world Applications",
+      "hint": "Use angle of elevation and distance on ground"
+    },
+    {
+      "id": 9,
+      "question": "What is the Law of Sines?",
+      "concept": "Advanced Trigonometry",
+      "hint": "a/sin(A) = b/sin(B) = c/sin(C)"
+    },
+    {
+      "id": 10,
+      "question": "What is the Law of Cosines?",
+      "concept": "Advanced Trigonometry",
+      "hint": "c² = a² + b² - 2ab×cos(C)"
+    }
+  ],
+  "final_assessment": [
+    {
+      "id": 1,
+      "question": "If sin(θ) = 0.6, what is cos(θ) in a right triangle?",
+      "options": ["0.4", "0.8", "0.6", "1"],
+      "correct_answer": "0.8",
+      "explanation": "Using sin²(θ) + cos²(θ) = 1: 0.6² + cos²(θ) = 1, so cos(θ) = 0.8"
+    },
+    {
+      "id": 2,
+      "question": "What is the exact value of sin(60°)?",
+      "options": ["1/2", "√3/2", "√2/2", "1"],
+      "correct_answer": "√3/2",
+      "explanation": "sin(60°) = √3/2 ≈ 0.866"
+    },
+    {
+      "id": 3,
+      "question": "In a right triangle with hypotenuse 10 and opposite side 6, what is the angle?",
+      "options": ["arcsin(0.6)", "arcsin(0.5)", "arccos(0.6)", "arctan(0.6)"],
+      "correct_answer": "arcsin(0.6)",
+      "explanation": "sin(θ) = opposite/hypotenuse = 6/10 = 0.6, so θ = arcsin(0.6)"
+    },
+    {
+      "id": 4,
+      "question": "What is tan(30°)?",
+      "options": ["1", "√3", "1/√3", "2"],
+      "correct_answer": "1/√3",
+      "explanation": "tan(30°) = sin(30°)/cos(30°) = (1/2)/(√3/2) = 1/√3"
+    },
+    {
+      "id": 5,
+      "question": "If you know angle A and side a, which law helps find side b?",
+      "options": ["Pythagorean theorem", "Law of Sines", "Law of Cosines", "SOHCAHTOA"],
+      "correct_answer": "Law of Sines",
+      "explanation": "Law of Sines: a/sin(A) = b/sin(B) is used when you have angle-side pairs"
+    }
+  ]
+}

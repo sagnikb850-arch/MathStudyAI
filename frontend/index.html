@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Study AI - Learn Mathematics with an AI Tutor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>📐 Math Study AI</h1>
+                <p>Learn with an AI Tutor</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-mode="chat">
+                    💬 Chat
+                </button>
+                <button class="nav-btn" data-mode="explain">
+                    📚 Explain Concept
+                </button>
+                <button class="nav-btn" data-mode="solve">
+                    🧮 Solve Problem
+                </button>
+                <button class="nav-btn" data-mode="resources">
+                    🔗 Resources
+                </button>
+            </nav>
+            
+            <div class="sidebar-actions">
+                <button id="resetBtn" class="btn-secondary">
+                    🔄 Reset Chat
+                </button>
+            </div>
+            
+            <div class="sidebar-info">
+                <h3>Topics Covered</h3>
+                <ul>
+                    <li>Algebra</li>
+                    <li>Geometry</li>
+                    <li>Calculus</li>
+                    <li>Linear Algebra</li>
+                    <li>Trigonometry</li>
+                    <li>Statistics</li>
+                    <li>And More!</li>
+                </ul>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h2 id="pageTitle">Chat with Your AI Math Tutor</h2>
+                <p id="pageDescription">Ask any math question and get instant help</p>
+            </header>
+            
+            <!-- Content Area -->
+            <div class="content-area">
+                
+                <!-- Chat Mode -->
+                <div id="chatMode" class="mode-content active">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="message bot-message">
+                            <div class="message-content">
+                                👋 Hello! I'm your Math Tutor AI. Ask me anything about mathematics - whether it's explaining a concept, solving a problem, or finding learning resources. What can I help you with today?
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <form id="chatForm" onsubmit="sendMessage(event)">
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    id="chatInput" 
+                                    placeholder="Ask me about math... e.g., 'Explain quadratic equations' or 'How do I solve 2x + 5 = 13?'"
+                                    required
+                                >
+                                <button type="submit" class="btn-primary">
+                                    Send ➜
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Explain Mode -->
+                <div id="explainMode" class="mode-content">
+                    <div class="input-form">
+                        <h3>Explain a Math Concept</h3>
+                        <form onsubmit="explainConcept(event)">
+                            <div class="form-group">
+                                <label for="conceptInput">What concept do you want to understand?</label>
+                                <input 
+                                    type="text" 
+                                    id="conceptInput" 
+                                    placeholder="e.g., Derivatives, Matrix Multiplication, Probability"
+                                    required
+                                >
+                            </div>
+                            <button type="submit" class="btn-primary">Explain Concept</button>
+                        </form>
+                    </div>
+                    
+                    <div id="explainResponse" class="response-area">
+                        <!-- Response will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Solve Mode -->
+                <div id="solveMode" class="mode-content">
+                    <div class="input-form">
+                        <h3>Solve a Math Problem</h3>
+                        <form onsubmit="solveProblem(event)">
+                            <div class="form-group">
+                                <label for="problemInput">Enter your math problem</label>
+                                <textarea 
+                                    id="problemInput" 
+                                    placeholder="e.g., Solve for x: 3x² + 2x - 5 = 0"
+                                    rows="4"
+                                    required
+                                ></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary">Solve Problem</button>
+                        </form>
+                    </div>
+                    
+                    <div id="solveResponse" class="response-area">
+                        <!-- Response will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Resources Mode -->
+                <div id="resourcesMode" class="mode-content">
+                    <div class="input-form">
+                        <h3>Find Learning Resources</h3>
+                        <form onsubmit="searchResources(event)">
+                            <div class="form-group">
+                                <label for="resourceSearch">Search for resources</label>
+                                <input 
+                                    type="text" 
+                                    id="resourceSearch" 
+                                    placeholder="e.g., Calculus, Algebra, Linear Algebra"
+                                    required
+                                >
+                            </div>
+                            <button type="submit" class="btn-primary">Search Resources</button>
+                        </form>
+                    </div>
+                    
+                    <div id="resourcesList" class="resources-list">
+                        <!-- Resources will appear here -->
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+        <p>Processing your request...</p>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
