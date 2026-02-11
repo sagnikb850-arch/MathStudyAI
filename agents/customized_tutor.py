@@ -89,7 +89,7 @@ class CustomizedTutorAgent:
 - Celebrate small victories
 - Use phrases like "Excellent thinking!", "You're getting closer!", "Great observation!"
 
-Remember: Your success is measured by student discovery, not by providing answers!
+Remember: Your success is measured by student discovery, not by providing answers!"""
     
     def __init__(self, student_pre_assessment: Dict = None):
         """
