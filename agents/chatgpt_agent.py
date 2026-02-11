@@ -20,27 +20,19 @@ class ChatGPTLikeAgent:
     
     SYSTEM_PROMPT = r"""You are a helpful Trigonometry assistant.
 
-⚠️ CRITICAL FORMATTING REQUIREMENT - READ FIRST:
-🔴 YOU MUST USE LATEX FOR EVERY SINGLE MATHEMATICAL EXPRESSION 🔴
-This is ABSOLUTELY MANDATORY. Every number, variable, equation, angle, or mathematical symbol MUST be wrapped in LaTeX.
+⚠️ LATEX FORMATTING REQUIREMENT:
+✅ Use proper LaTeX for ALL mathematical expressions:
+- Inline math (use single $): The sine of an angle is $\sin(\theta)$  
+- Display equations (use double $$): $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+- Fractions: $\frac{1}{2}$ not 1/2
+- Powers: $x^2$ not x^2  
+- Roots: $\sqrt{x}$ not sqrt(x)
+- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$
+- Greek letters: $\theta$, $\alpha$, $\pi$
+- Angles: $30^\circ$ not 30°
+- Equations: $x = 5$ not x = 5
 
-📐 LATEX FORMATTING RULES (ABSOLUTELY MANDATORY - NO EXCEPTIONS):
-
-✅ CORRECT - Always do this:
-- Inline math: $\sin(\theta)$, $x = 5$, $\frac{opposite}{hypotenuse}$, $30^\circ$, $0.5$
-- Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
-- Fractions: $\frac{1}{2}$, $\frac{a}{b}$
-- Powers: $x^2$, $\sin^2(\theta)$
-- Roots: $\sqrt{x}$, $\sqrt{2}$
-- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$
-- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$
-- Angles: $30^\circ$, $45^\circ$
-- All numbers in math: $1$, $2$, $3.14$, $0.5$
-
-❌ WRONG - Never do this:
-- Plain text: sin(θ), x = 5, 1/2, sqrt(2)
-- Naked numbers: The answer is 5 (should be: The answer is $5$)
-- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$)
+❌ Never use plain text for math: sin(θ), 1/2, sqrt(2), or θ
 
 Answer questions clearly and concisely.
 When asked about trigonometry concepts, provide accurate information.
@@ -61,39 +53,37 @@ Be friendly and patient.
     def _format_with_sympy(self, text: str) -> str:
         """
         Post-process text to ensure all mathematical expressions are in LaTeX format
-        Uses SymPy to convert common mathematical patterns to LaTeX
+        Converts plain text math to LaTeX that Streamlit can render properly
         """
-        # Already properly formatted expressions (don't re-process)
-        if '$' in text and ('\\sin' in text or '\\cos' in text or '\\tan' in text or '\\frac' in text):
+        import re
+        
+        # Skip if already has lots of LaTeX formatting
+        latex_count = text.count('$')
+        if latex_count > 10:  # Already well-formatted
             return text
         
-        # Common patterns to convert to LaTeX
-        replacements = [
-            # Trig functions
-            (r'\bsin\s*\(([^)]+)\)', r'$\\sin(\1)$'),
-            (r'\bcos\s*\(([^)]+)\)', r'$\\cos(\1)$'),
-            (r'\btan\s*\(([^)]+)\)', r'$\\tan(\1)$'),
-            (r'\barcsin\s*\(([^)]+)\)', r'$\\arcsin(\1)$'),
-            (r'\barccos\s*\(([^)]+)\)', r'$\\arccos(\1)$'),
-            (r'\barctan\s*\(([^)]+)\)', r'$\\arctan(\1)$'),
-            # Greek letters
-            (r'\btheta\b', r'$\\theta$'),
-            (r'\balpha\b', r'$\\alpha$'),
-            (r'\bbeta\b', r'$\\beta$'),
-            (r'\bpi\b', r'$\\pi$'),
-            # Degree symbol
-            (r'(\d+)\s*°', r'$\1^\\circ$'),
-            (r'(\d+)\s*degrees', r'$\1^\\circ$'),
-            # Fractions like 1/2
-            (r'(\d+)/(\d+)', r'$\\frac{\1}{\2}$'),
-            # Square root
-            (r'\bsqrt\s*\(([^)]+)\)', r'$\\sqrt{\1}$'),
-            # Equations like x = 5
-            (r'([a-z])\s*=\s*(\d+\.?\d*)', r'$\1 = \2$'),
+        result = text
+        
+        # Only convert obvious plain-text math that slipped through
+        conversions = [
+            # Plain trig functions
+            (r'(?<!\$)\bsin\s*\(([^)]+)\)(?!\$)', r'$\\sin(\1)$'),
+            (r'(?<!\$)\bcos\s*\(([^)]+)\)(?!\$)', r'$\\cos(\1)$'),
+            (r'(?<!\$)\btan\s*\(([^)]+)\)(?!\$)', r'$\\tan(\1)$'),
+            # Plain Greek letters
+            (r'(?<!\$)\btheta\b(?!\$)', r'$\\theta$'),
+            (r'(?<!\$)\balpha\b(?!\$)', r'$\\alpha$'),
+            (r'(?<!\$)\bbeta\b(?!\$)', r'$\\beta$'),
+            # Degree symbols
+            (r'(?<!\$)(\d+)\s*°(?!\$)', r'$\1^\\circ$'),
+            (r'(?<!\$)(\d+)\s*degrees(?!\$)', r'$\1^\\circ$'),
+            # Plain fractions
+            (r'(?<!\$)\b(\d+)/(\d+)\b(?!\$)', r'$\\frac{\1}{\2}$'),
+            # Plain sqrt
+            (r'(?<!\$)\bsqrt\s*\(([^)]+)\)(?!\$)', r'$\\sqrt{\1}$'),
         ]
         
-        result = text
-        for pattern, replacement in replacements:
+        for pattern, replacement in conversions:
             result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
         
         return result

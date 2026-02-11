@@ -22,27 +22,27 @@ class CustomizedTutorAgent:
 
 ⚠️ CRITICAL FORMATTING REQUIREMENT - READ FIRST:
 🔴 YOU MUST USE LATEX FOR EVERY SINGLE MATHEMATICAL EXPRESSION 🔴
-This is NON-NEGOTIABLE. Every number, variable, equation, angle, or mathematical symbol MUST be wrapped in LaTeX.
+This is NON-NEGOTIABLE. Every number, variable, equation, angle, or mathematical symbol MUST be in LaTeX format.
 
 📐 LATEX FORMATTING RULES (ABSOLUTELY MANDATORY - NO EXCEPTIONS):
 
-✅ CORRECT - Always do this:
-- Inline math: $\sin(\theta)$, $x = 5$, $\frac{opposite}{hypotenuse}$, $30^\circ$, $0.5$, $\theta$
-- Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
-- Fractions: $\frac{1}{2}$, $\frac{a}{b}$
-- Powers: $x^2$, $\sin^2(\theta)$, $e^x$
-- Roots: $\sqrt{x}$, $\sqrt{2}$, $\sqrt[3]{8}$
-- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$, $\sin^{-1}(x)$
-- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$, $\phi$
-- Angles: $30^\circ$, $45^\circ$, $\frac{\pi}{3}$ radians
-- Comparisons: $x > 5$, $y = 10$, $a \leq b$
-- All numbers in math context: $1$, $2$, $3.14$, $0.5$
+✅ CORRECT - Always use LaTeX delimiters:
+- Inline math (use single $): The sine of an angle is $\sin(\theta)$
+- Display equations (use double $$): $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+- Fractions: Use $\frac{1}{2}$ not 1/2
+- Powers: Use $x^2$ and $\sin^2(\theta)$ not x^2 or sin²(θ)
+- Roots: Use $\sqrt{x}$ not sqrt(x)
+- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$
+- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$
+- Angles: $30^\circ$ not 30° or 30 degrees
+- Equations: $x = 5$ not x = 5
+- All math expressions must be wrapped in $ for inline or $$ for display
 
 ❌ WRONG - Never do this:
 - Plain text math: sin(θ), x = 5, 1/2, θ = 30°, sqrt(2)
-- Unicode symbols without LaTeX: θ, π, ≤, ≥, ×, ÷
+- Unicode symbols: θ, π, ≤, ≥, ×, ÷ (use LaTeX instead)
 - Naked numbers in equations: The result is 5 (should be: The result is $5$)
-- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$ or $0.5$)
+- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$)
 
 🎯 YOUR CORE PRINCIPLES:
 1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
@@ -233,39 +233,38 @@ Remember: Your success is measured by student discovery, not by providing answer
     def _format_with_sympy(self, text: str) -> str:
         """
         Post-process text to ensure all mathematical expressions are in LaTeX format
-        Uses SymPy to convert common mathematical patterns to LaTeX
+        Converts plain text math to LaTeX that Streamlit can render properly
         """
-        # Already properly formatted expressions (don't re-process)
-        if '$' in text and ('\\sin' in text or '\\cos' in text or '\\tan' in text or '\\frac' in text):
+        import re
+        
+        # Skip if already has lots of LaTeX formatting
+        latex_count = text.count('$')
+        if latex_count > 10:  # Already well-formatted
             return text
         
-        # Common patterns to convert to LaTeX
-        replacements = [
-            # Trig functions
-            (r'\bsin\s*\(([^)]+)\)', r'$\\sin(\1)$'),
-            (r'\bcos\s*\(([^)]+)\)', r'$\\cos(\1)$'),
-            (r'\btan\s*\(([^)]+)\)', r'$\\tan(\1)$'),
-            (r'\barcsin\s*\(([^)]+)\)', r'$\\arcsin(\1)$'),
-            (r'\barccos\s*\(([^)]+)\)', r'$\\arccos(\1)$'),
-            (r'\barctan\s*\(([^)]+)\)', r'$\\arctan(\1)$'),
-            # Greek letters
-            (r'\btheta\b', r'$\\theta$'),
-            (r'\balpha\b', r'$\\alpha$'),
-            (r'\bbeta\b', r'$\\beta$'),
-            (r'\bpi\b', r'$\\pi$'),
-            # Degree symbol
-            (r'(\d+)\s*°', r'$\1^\\circ$'),
-            (r'(\d+)\s*degrees', r'$\1^\\circ$'),
-            # Fractions like 1/2
-            (r'(\d+)/(\d+)', r'$\\frac{\1}{\2}$'),
-            # Square root
-            (r'\bsqrt\s*\(([^)]+)\)', r'$\\sqrt{\1}$'),
-            # Equations like x = 5
-            (r'([a-z])\s*=\s*(\d+\.?\d*)', r'$\1 = \2$'),
+        result = text
+        
+        # Only convert obvious plain-text math that slipped through
+        # These patterns look for math NOT already in $ delimiters
+        conversions = [
+            # Plain trig functions without LaTeX
+            (r'(?<!\$)\bsin\s*\(([^)]+)\)(?!\$)', r'$\\sin(\1)$'),
+            (r'(?<!\$)\bcos\s*\(([^)]+)\)(?!\$)', r'$\\cos(\1)$'),
+            (r'(?<!\$)\btan\s*\(([^)]+)\)(?!\$)', r'$\\tan(\1)$'),
+            # Plain Greek letters
+            (r'(?<!\$)\btheta\b(?!\$)', r'$\\theta$'),
+            (r'(?<!\$)\balpha\b(?!\$)', r'$\\alpha$'),
+            (r'(?<!\$)\bbeta\b(?!\$)', r'$\\beta$'),
+            # Degree symbols
+            (r'(?<!\$)(\d+)\s*°(?!\$)', r'$\1^\\circ$'),
+            (r'(?<!\$)(\d+)\s*degrees(?!\$)', r'$\1^\\circ$'),
+            # Plain fractions (only simple ones)
+            (r'(?<!\$)\b(\d+)/(\d+)\b(?!\$)', r'$\\frac{\1}{\2}$'),
+            # Plain sqrt
+            (r'(?<!\$)\bsqrt\s*\(([^)]+)\)(?!\$)', r'$\\sqrt{\1}$'),
         ]
         
-        result = text
-        for pattern, replacement in replacements:
+        for pattern, replacement in conversions:
             result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
         
         return result
