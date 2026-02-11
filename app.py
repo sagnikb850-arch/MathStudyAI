@@ -30,6 +30,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Add MathJax support for LaTeX rendering
+mathjax_script = """
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$']],
+    displayMath: [['$$', '$$']]
+  },
+  svg: {
+    fontCache: 'global'
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+"""
+st.markdown(mathjax_script, unsafe_allow_html=True)
+
 # Initialize session state
 if 'student_id' not in st.session_state:
     st.session_state.student_id = None
@@ -62,32 +79,15 @@ storage = DataStorage('data')
 # Helper function to render LaTeX expressions properly
 def render_latex_content(text):
     """
-    Render LaTeX as actual math symbols - NO LaTeX code visible
-    Uses Streamlit's native LaTeX rendering for all math expressions
+    Render LaTeX as actual math symbols using MathJax
+    MathJax automatically converts $...$ and $$...$$ to rendered math
     """
-    import re
-    
     if not text or not text.strip():
         return
     
-    # First, handle display math ($$...$$) - these are centered equations
-    display_math_pattern = r'\$\$(.*?)\$\$'
-    
-    # Split text into parts: [text, display_math, text, display_math, ...]
-    parts = re.split(display_math_pattern, text, flags=re.DOTALL)
-    
-    for i, part in enumerate(parts):
-        if not part.strip():
-            continue
-            
-        if i % 2 == 1:  # Display math content (between $$...$$)
-            # Render as centered equation using st.latex()
-            st.latex(part.strip())
-        else:  # Regular text with possible inline math
-            # For inline math, use st.markdown() which natively supports LaTeX
-            # Streamlit automatically renders $...$ as math when using st.markdown()
-            if part.strip():
-                st.markdown(part.strip(), unsafe_allow_html=False)
+    # Simply render the text with LaTeX delimiters
+    # MathJax (loaded in page header) will automatically render all math
+    st.markdown(text, unsafe_allow_html=True)
 
 # Initialize agents (lazy load)
 @st.cache_resource
