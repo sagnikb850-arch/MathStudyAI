@@ -1,5 +1,37 @@
 {
-  "pre_assessment": [
+  "pre_assessment_group1": [
+    {
+      "id": 1,
+      "question": "A regular pentagon is inscribed in a circle of radius $12$ cm. Find the perimeter of the pentagon.",
+      "type": "text",
+      "unit": "cm"
+    },
+    {
+      "id": 2,
+      "question": "The hour hand on my antique Seth Thomas schoolhouse clock is $4$ inches long and the minute hand is $5.5$ inches long. Find the distance between the ends of the hands when the clock reads four o'clock. Round your answer to the nearest hundredth of an inch.",
+      "type": "text",
+      "unit": "inches"
+    },
+    {
+      "id": 3,
+      "question": "Two search teams spot a stranded climber on a mountain. The first search team is $0.5$ miles from the second search team, and both teams are at an altitude of $1$ mile. The angle of elevation from the first search team to the stranded climber is $15^\\circ$. The angle of elevation from the second search team to the climber is $22^\\circ$. What is the altitude of the climber? Round to the nearest tenth of a mile.",
+      "type": "text",
+      "unit": "miles"
+    },
+    {
+      "id": 4,
+      "question": "From a point $300$ feet above level ground in a firetower, a ranger spots two fires in the Yeti National Forest. The angle of depression made by the line of sight from the ranger to the first fire is $2.5^\\circ$ and the angle of depression made by line of sight from the ranger to the second fire is $1.3^\\circ$. The angle formed by the two lines of sight is $117^\\circ$. Find the distance between the two fires. Round your answer to the nearest foot.",
+      "type": "text",
+      "unit": "feet"
+    },
+    {
+      "id": 5,
+      "question": "The HMS Sasquatch leaves port on a bearing of N$23^\\circ$E and travels for $5$ miles. It then changes course and follows a heading of S$41^\\circ$E for $2$ miles. How far is it from port? Round your answer to the nearest hundredth of a mile. What is its bearing to port? Round your angle to the nearest degree.",
+      "type": "text",
+      "unit": "miles and bearing"
+    }
+  ],
+  "pre_assessment_group2": [
     {
       "id": 1,
       "question": "What is the sine of $30$ degrees?",

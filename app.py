@@ -52,7 +52,7 @@ if 'admin_page' not in st.session_state:
 with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
     questions_data = json.load(f)
 
-pre_questions = questions_data['pre_assessment']
+# Questions will be loaded based on group
 learning_questions = questions_data['learning_questions']
 final_questions = questions_data['final_assessment']
 
@@ -540,7 +540,14 @@ def show_registration():
 def show_pre_assessment():
     """Pre-assessment quiz"""
     st.title("📝 Pre-Assessment Quiz")
-    st.write("Answer these 5 questions to assess your current trigonometry knowledge.")
+    
+    # Load questions based on group
+    if st.session_state.group == '1':
+        pre_questions = questions_data['pre_assessment_group1']
+        st.write("Answer these 5 questions to assess your trigonometry knowledge. Show your work and provide numerical answers.")
+    else:
+        pre_questions = questions_data['pre_assessment_group2']
+        st.write("Answer these 5 questions to assess your current trigonometry knowledge.")
     
     with st.form("pre_assessment_form"):
         answers = []
@@ -549,11 +556,22 @@ def show_pre_assessment():
             st.subheader(f"Question {i+1}")
             st.markdown(question['question'])
             
-            answer = st.radio(
-                "Select your answer:",
-                options=question['options'],
-                key=f"pre_q{question['id']}"
-            )
+            if st.session_state.group == '1':
+                # Text input for Group 1 (complex questions)
+                answer = st.text_area(
+                    f"Your answer (include calculations):",
+                    key=f"pre_q{question['id']}",
+                    height=100,
+                    placeholder="Enter your answer and show your work..."
+                )
+            else:
+                # Multiple choice for Group 2
+                answer = st.radio(
+                    "Select your answer:",
+                    options=question['options'],
+                    key=f"pre_q{question['id']}"
+                )
+            
             answers.append({
                 'question_id': question['id'],
                 'student_answer': answer
@@ -592,6 +610,13 @@ def show_pre_assessment():
                 st.session_state.pre_assessment_analysis = analysis['analysis']
                 st.session_state.pre_assessment_done = True
                 st.session_state.current_page = 'learning'
+                
+                # Show confirmation without revealing score for Group 1
+                if st.session_state.group == '1':
+                    st.success("✅ Pre-assessment submitted! Proceeding to learning phase...")
+                else:
+                    st.success(f"✅ Pre-assessment complete! Score: {analysis['analysis'].get('score_percentage', 0):.1f}%")
+                
                 st.rerun()
             else:
                 st.error(f"Error analyzing assessment: {analysis.get('error')}")
@@ -615,15 +640,11 @@ def show_group1_learning():
     st.header("👨‍🏫 Learn with Customized AI Tutor")
     st.write("The AI tutor will guide you through concepts using Socratic questioning. Respond to each question to continue learning!")
     
-    # Get pre-assessment analysis
+    # Get pre-assessment analysis (scores hidden for Group 1)
     analysis = st.session_state.get('pre_assessment_analysis', {})
     
-    if analysis:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Your Score", f"{analysis.get('score_percentage', 0):.1f}%")
-        with col2:
-            st.metric("Difficulty Level", analysis.get('difficulty_level', 'Unknown'))
+    # Do not show scores for Group 1 to maintain study integrity
+    st.info("Your pre-assessment has been analyzed. The AI tutor will adapt to your needs.")
     
     # Initialize tutor in session state
     if 'tutor' not in st.session_state:
@@ -867,45 +888,50 @@ def show_results():
     pre_analysis = st.session_state.get('pre_assessment_analysis', {})
     final_analysis = st.session_state.get('final_assessment_analysis', {})
     
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            "Pre-Assessment Score",
-            f"{pre_analysis.get('score_percentage', 0):.1f}%"
-        )
-    
-    with col2:
-        st.metric(
-            "Final Assessment Score",
-            f"{final_analysis.get('score_percentage', 0):.1f}%"
-        )
-    
-    with col3:
-        improvement = final_analysis.get('score_percentage', 0) - pre_analysis.get('score_percentage', 0)
-        st.metric(
-            "Improvement",
-            f"{improvement:+.1f}%"
-        )
-    
-    st.divider()
-    
-    # Show feedback
-    st.subheader("📊 Performance Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**Pre-Assessment Feedback**")
-        with st.container(border=True):
-            st.markdown(pre_analysis.get('detailed_feedback', 'No feedback available'))
-    
-    with col2:
-        st.write("**Final Assessment Feedback**")
-        with st.container(border=True):
-            st.markdown(final_analysis.get('detailed_feedback', 'No feedback available'))
+    # Hide scores for Group 1 to maintain study integrity
+    if st.session_state.group != '1':
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                "Pre-Assessment Score",
+                f"{pre_analysis.get('score_percentage', 0):.1f}%"
+            )
+        
+        with col2:
+            st.metric(
+                "Final Assessment Score",
+                f"{final_analysis.get('score_percentage', 0):.1f}%"
+            )
+        
+        with col3:
+            improvement = final_analysis.get('score_percentage', 0) - pre_analysis.get('score_percentage', 0)
+            st.metric(
+                "Improvement",
+                f"{improvement:+.1f}%"
+            )
+    else:
+        st.info("Thank you for completing the assessments! Your responses have been recorded for research purposes. Scores are not displayed to maintain study integrity.")
     
     st.divider()
+    
+    # Show feedback (hidden for Group 1)
+    if st.session_state.group != '1':
+        st.subheader("📊 Performance Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Pre-Assessment Feedback**")
+            with st.container(border=True):
+                st.markdown(pre_analysis.get('detailed_feedback', 'No feedback available'))
+        
+        with col2:
+            st.write("**Final Assessment Feedback**")
+            with st.container(border=True):
+                st.markdown(final_analysis.get('detailed_feedback', 'No feedback available'))
+        
+        st.divider()
     
     st.subheader("📈 Group Comparison")
     
