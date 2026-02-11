@@ -319,7 +319,9 @@ def show_admin_manage_questions():
     
     # Display questions
     for i, q in enumerate(questions):
-        with st.expander(f"Question {i+1}: {q.get('question', q.get('concept', 'N/A')[:50]}..."):
+        text = q.get('question') or q.get('concept', 'N/A')
+        preview = text[:50] if len(text) > 50 else text
+        with st.expander(f"Question {i+1}: {preview}..."):
             st.json(q)
     
     st.divider()
