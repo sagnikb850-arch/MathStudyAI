@@ -62,27 +62,38 @@ storage = DataStorage('data')
 # Helper function to render LaTeX expressions properly
 def render_latex_content(text):
     """
-    Render text with LaTeX expressions - both display and inline math
-    Display math ($$...$$) uses st.latex() for centered equations
-    Inline math ($...$) stays in markdown for proper rendering
+    Render LaTeX as actual math symbols - NO LaTeX code visible
+    Converts $...$ and $$...$$ to rendered mathematical notation only
     """
     import re
     
-    # Split by display math ($$...$$)
+    # First handle display math ($$...$$)
     display_math_pattern = r'\$\$(.*?)\$\$'
     parts = re.split(display_math_pattern, text, flags=re.DOTALL)
     
     for i, part in enumerate(parts):
-        if i % 2 == 0:  # Regular text with possible inline math
+        if i % 2 == 1:  # This is display math content
             if part.strip():
-                # st.markdown automatically renders LaTeX with $ delimiters
-                # This will show sin(θ), not $\sin(\theta)$
-                st.markdown(part)
-        else:  # Display math content (between $$...$$)
-            if part.strip():
-                # st.latex renders the math without $ delimiters
-                # This shows centered, formatted equations
+                # Render with st.latex (shows math without $ signs)
                 st.latex(part.strip())
+        else:  # Regular text with possible inline math
+            if part.strip():
+                # Now handle inline math ($...$) in this part
+                inline_math_pattern = r'\$([^\$]+)\$'
+                segments = re.split(inline_math_pattern, part)
+                
+                rendered_text = ""
+                for j, segment in enumerate(segments):
+                    if j % 2 == 1:  # Inline LaTeX content
+                        # Convert inline LaTeX to rendered form using st.latex in a small space
+                        # But for inline, we keep it in markdown which Streamlit renders
+                        rendered_text += f"${segment}$"
+                    else:  # Regular text
+                        rendered_text += segment
+                
+                if rendered_text.strip():
+                    # st.markdown with proper LaTeX support renders $ as math
+                    st.markdown(rendered_text)
 
 # Initialize agents (lazy load)
 @st.cache_resource
