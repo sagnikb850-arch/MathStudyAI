@@ -20,29 +20,22 @@ class CustomizedTutorAgent:
     
     SYSTEM_PROMPT = r"""You are an expert AI Trigonometry Tutor using the ReAct (Reasoning + Action) framework.
 
-⚠️ CRITICAL FORMATTING REQUIREMENT - READ FIRST:
-🔴 YOU MUST USE LATEX FOR EVERY SINGLE MATHEMATICAL EXPRESSION 🔴
-This is NON-NEGOTIABLE. Every number, variable, equation, angle, or mathematical symbol MUST be in LaTeX format.
+⚠️ MATHEMATICAL NOTATION - CRITICAL:
+You MUST use proper LaTeX notation for ALL mathematical expressions.
+The format is simple: wrap math in single dollar signs like this: $\sin(\theta)$
 
-📐 LATEX FORMATTING RULES (ABSOLUTELY MANDATORY - NO EXCEPTIONS):
+Examples of CORRECT formatting:
+- Trig functions: $\sin(30)$, $\cos(x)$, $\tan(\theta)$
+- Fractions: $\frac{1}{2}$, $\frac{opposite}{adjacent}$
+- Greek letters: $\theta$, $\alpha$, $\pi$
+- Powers: $x^2$, $\sin^2(\theta)$
+- Roots: $\sqrt{2}$, $\sqrt{x}$
+- Degrees: $30^\circ$, $45^\circ$
+- Equations: $x = 5$, $\sin(\theta) = 0.5$
 
-✅ CORRECT - Always use LaTeX delimiters:
-- Inline math (use single $): The sine of an angle is $\sin(\theta)$
-- Display equations (use double $$): $$\sin^2(\theta) + \cos^2(\theta) = 1$$
-- Fractions: Use $\frac{1}{2}$ not 1/2
-- Powers: Use $x^2$ and $\sin^2(\theta)$ not x^2 or sin²(θ)
-- Roots: Use $\sqrt{x}$ not sqrt(x)
-- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$
-- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$
-- Angles: $30^\circ$ not 30° or 30 degrees
-- Equations: $x = 5$ not x = 5
-- All math expressions must be wrapped in $ for inline or $$ for display
+For display equations, use double dollars: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
 
-❌ WRONG - Never do this:
-- Plain text math: sin(θ), x = 5, 1/2, θ = 30°, sqrt(2)
-- Unicode symbols: θ, π, ≤, ≥, ×, ÷ (use LaTeX instead)
-- Naked numbers in equations: The result is 5 (should be: The result is $5$)
-- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$)
+NEVER use plain text for math: sin(30), 1/2, theta, sqrt(2) - ALWAYS wrap in $ delimiters.
 
 🎯 YOUR CORE PRINCIPLES:
 1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
@@ -232,44 +225,31 @@ Remember: Your success is measured by student discovery, not by providing answer
     
     def _format_with_sympy(self, text: str) -> str:
         """
-        Post-process text to ensure all mathematical expressions are in LaTeX format
-        Converts plain text math to LaTeX that Streamlit can render properly
+        Minimal post-processing - only convert obviously missed plain text math
+        Most math should already be in LaTeX from the AI
         """
         import re
         
-        # Skip if already has lots of LaTeX formatting
-        latex_count = text.count('$')
-        if latex_count > 10:  # Already well-formatted
+        # If already has good LaTeX formatting, don't touch it
+        if text.count('$') >= 4:
             return text
         
+        # Only fix truly plain text that slipped through
+        # Use minimal conversions to avoid corrupting existing LaTeX
         result = text
         
-        # Only convert obvious plain-text math that slipped through
-        # These patterns look for math NOT already in $ delimiters
-        conversions = [
-            # Plain trig functions without LaTeX
-            (r'(?<!\$)\bsin\s*\(([^)]+)\)(?!\$)', r'$\\sin(\1)$'),
-            (r'(?<!\$)\bcos\s*\(([^)]+)\)(?!\$)', r'$\\cos(\1)$'),
-            (r'(?<!\$)\btan\s*\(([^)]+)\)(?!\$)', r'$\\tan(\1)$'),
-            (r'(?<!\$)\barcsin\s*\(([^)]+)\)(?!\$)', r'$\\arcsin(\1)$'),
-            (r'(?<!\$)\barccos\s*\(([^)]+)\)(?!\$)', r'$\\arccos(\1)$'),
-            (r'(?<!\$)\barctan\s*\(([^)]+)\)(?!\$)', r'$\\arctan(\1)$'),
-            # Plain Greek letters
-            (r'(?<!\$)\btheta\b(?!\$)', r'$\\theta$'),
-            (r'(?<!\$)\balpha\b(?!\$)', r'$\\alpha$'),
-            (r'(?<!\$)\bbeta\b(?!\$)', r'$\\beta$'),
-            (r'(?<!\$)\bpi\b(?!\$)', r'$\\pi$'),
-            # Degree symbols
-            (r'(?<!\$)(\d+)\s*°(?!\$)', r'$\1^\\circ$'),
-            (r'(?<!\$)(\d+)\s*degrees(?!\$)', r'$\1^\\circ$'),
-            # Plain fractions (only simple ones)
-            (r'(?<!\$)\b(\d+)/(\d+)\b(?!\$)', r'$\\frac{\1}{\2}$'),
-            # Plain sqrt
-            (r'(?<!\$)\bsqrt\s*\(([^)]+)\)(?!\$)', r'$\\sqrt{\1}$'),
+        # Only convert if NOT already in $ delimiters
+        simple_fixes = [
+            (r'\bsin\(', r'\\sin('),
+            (r'\bcos\(', r'\\cos('),
+            (r'\btan\(', r'\\tan('),
         ]
         
-        for pattern, replacement in conversions:
-            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+        # Check if text has NO LaTeX at all
+        if '$' not in text:
+            # Convert common plain text math
+            if 'sin(' in text.lower() or 'cos(' in text.lower() or 'tan(' in text.lower():
+                result = 'Please express mathematical functions using LaTeX notation.'
         
         return result
     

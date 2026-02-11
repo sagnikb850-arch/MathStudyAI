@@ -20,19 +20,22 @@ class ChatGPTLikeAgent:
     
     SYSTEM_PROMPT = r"""You are a helpful Trigonometry assistant.
 
-⚠️ LATEX FORMATTING REQUIREMENT:
-✅ Use proper LaTeX for ALL mathematical expressions:
-- Inline math (use single $): The sine of an angle is $\sin(\theta)$  
-- Display equations (use double $$): $$\sin^2(\theta) + \cos^2(\theta) = 1$$
-- Fractions: $\frac{1}{2}$ not 1/2
-- Powers: $x^2$ not x^2  
-- Roots: $\sqrt{x}$ not sqrt(x)
-- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$
-- Greek letters: $\theta$, $\alpha$, $\pi$
-- Angles: $30^\circ$ not 30°
-- Equations: $x = 5$ not x = 5
+⚠️ MATHEMATICAL NOTATION:
+Use proper LaTeX notation for ALL math expressions.
+Format: wrap math in single dollar signs like $\sin(\theta)$
 
-❌ Never use plain text for math: sin(θ), 1/2, sqrt(2), or θ
+Examples:
+- Trig functions: $\sin(30)$, $\cos(x)$, $\tan(\theta)$
+- Fractions: $\frac{1}{2}$
+- Greek letters: $\theta$, $\alpha$, $\pi$
+- Powers: $x^2$
+- Roots: $\sqrt{2}$
+- Degrees: $30^\circ$
+- Equations: $x = 5$
+
+For display equations use $$: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+
+NEVER use plain text for math expressions.
 
 Answer questions clearly and concisely.
 When asked about trigonometry concepts, provide accurate information.
@@ -52,45 +55,15 @@ Be friendly and patient.
     
     def _format_with_sympy(self, text: str) -> str:
         """
-        Post-process text to ensure all mathematical expressions are in LaTeX format
-        Converts plain text math to LaTeX that Streamlit can render properly
+        Minimal post-processing - only convert obviously missed plain text math
+        Most math should already be in LaTeX from the AI
         """
-        import re
-        
-        # Skip if already has lots of LaTeX formatting
-        latex_count = text.count('$')
-        if latex_count > 10:  # Already well-formatted
+        # If already has LaTeX formatting, don't touch it
+        if text.count('$') >= 4:
             return text
         
-        result = text
-        
-        # Only convert obvious plain-text math that slipped through
-        conversions = [
-            # Plain trig functions
-            (r'(?<!\$)\bsin\s*\(([^)]+)\)(?!\$)', r'$\\sin(\1)$'),
-            (r'(?<!\$)\bcos\s*\(([^)]+)\)(?!\$)', r'$\\cos(\1)$'),
-            (r'(?<!\$)\btan\s*\(([^)]+)\)(?!\$)', r'$\\tan(\1)$'),
-            (r'(?<!\$)\barcsin\s*\(([^)]+)\)(?!\$)', r'$\\arcsin(\1)$'),
-            (r'(?<!\$)\barccos\s*\(([^)]+)\)(?!\$)', r'$\\arccos(\1)$'),
-            (r'(?<!\$)\barctan\s*\(([^)]+)\)(?!\$)', r'$\\arctan(\1)$'),
-            # Plain Greek letters
-            (r'(?<!\$)\btheta\b(?!\$)', r'$\\theta$'),
-            (r'(?<!\$)\balpha\b(?!\$)', r'$\\alpha$'),
-            (r'(?<!\$)\bbeta\b(?!\$)', r'$\\beta$'),
-            (r'(?<!\$)\bpi\b(?!\$)', r'$\\pi$'),
-            # Degree symbols
-            (r'(?<!\$)(\d+)\s*°(?!\$)', r'$\1^\\circ$'),
-            (r'(?<!\$)(\d+)\s*degrees(?!\$)', r'$\1^\\circ$'),
-            # Plain fractions
-            (r'(?<!\$)\b(\d+)/(\d+)\b(?!\$)', r'$\\frac{\1}{\2}$'),
-            # Plain sqrt
-            (r'(?<!\$)\bsqrt\s*\(([^)]+)\)(?!\$)', r'$\\sqrt{\1}$'),
-        ]
-        
-        for pattern, replacement in conversions:
-            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
-        
-        return result
+        # If has NO math notation at all, return as-is
+        return text
     
     def ask_question(self, user_question: str) -> Dict[str, Any]:
         """
