@@ -251,10 +251,14 @@ Remember: Your success is measured by student discovery, not by providing answer
             (r'(?<!\$)\bsin\s*\(([^)]+)\)(?!\$)', r'$\\sin(\1)$'),
             (r'(?<!\$)\bcos\s*\(([^)]+)\)(?!\$)', r'$\\cos(\1)$'),
             (r'(?<!\$)\btan\s*\(([^)]+)\)(?!\$)', r'$\\tan(\1)$'),
+            (r'(?<!\$)\barcsin\s*\(([^)]+)\)(?!\$)', r'$\\arcsin(\1)$'),
+            (r'(?<!\$)\barccos\s*\(([^)]+)\)(?!\$)', r'$\\arccos(\1)$'),
+            (r'(?<!\$)\barctan\s*\(([^)]+)\)(?!\$)', r'$\\arctan(\1)$'),
             # Plain Greek letters
             (r'(?<!\$)\btheta\b(?!\$)', r'$\\theta$'),
             (r'(?<!\$)\balpha\b(?!\$)', r'$\\alpha$'),
             (r'(?<!\$)\bbeta\b(?!\$)', r'$\\beta$'),
+            (r'(?<!\$)\bpi\b(?!\$)', r'$\\pi$'),
             # Degree symbols
             (r'(?<!\$)(\d+)\s*°(?!\$)', r'$\1^\\circ$'),
             (r'(?<!\$)(\d+)\s*degrees(?!\$)', r'$\1^\\circ$'),
