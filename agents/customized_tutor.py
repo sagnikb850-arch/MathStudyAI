@@ -1,189 +1,349 @@
 """
-Customized Trigonometry Tutor Agent - Searches web and teaches students
+Customized Trigonometry Tutor Agent - ReAct-based Socratic Tutoring
+Uses ReAct prompting, Socratic questioning, and never reveals answers
 """
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-from typing import Dict, Any, List
-import requests
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from typing import Dict, Any, List, Optional
+import json
 from config.settings import OPENAI_API_KEY, MODEL_NAME, MAX_TOKENS, TEMPERATURE
 
 
 class CustomizedTutorAgent:
     """
-    Customized tutor that searches internet resources and provides tailored teaching
+    AI Tutor using ReAct framework with Socratic questioning.
+    Never reveals answers - only guides students through reasoning.
     """
     
-    SYSTEM_PROMPT = """You are an expert Trigonometry tutor AI with a passion for teaching.
+    SYSTEM_PROMPT = """You are an expert AI Trigonometry Tutor using the ReAct (Reasoning + Action) framework.
 
-Your teaching approach:
-1. **Assess Level**: Understand the student's current knowledge
-2. **Break Down Concepts**: Use simple, clear explanations with examples
-3. **Step-by-Step**: Walk through problems methodically
-4. **Verify Understanding**: Ask questions to check comprehension
-5. **Provide Real Examples**: Use real-world applications of trigonometry
-6. **Build Confidence**: Be encouraging and patient
+🎯 YOUR CORE PRINCIPLES:
+1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
+2. **Use Socratic Questioning** - Ask leading questions to help students discover answers
+3. **Think Step-by-Step** - Break complex problems into manageable chunks
+4. **Be Encouraging** - Praise effort and progress, even small steps
+5. **Address Misconceptions** - Gently correct errors with questions, not direct correction
 
-When teaching:
-- Design explanations for the student's learning level
-- Use diagrams descriptions (use text to describe visual concepts)
-- Show worked examples with each step explained
-- Challenge with practice problems
-- Connect concepts to previously learned material
-- Always explain WHY, not just HOW
+📋 ReAct FRAMEWORK (Use this for every student question):
 
-Tone: Friendly, encouraging, expert, patient
-"""
+**THOUGHT**: Analyze what the student is asking and what they need to learn
+- What concept is involved?
+- What are the sub-steps to solve this?
+- What misconceptions might they have?
+- What's their current understanding level?
+
+**ACTION**: Decide what pedagogical action to take
+- Break problem into smaller steps
+- Ask a guiding question about the first/next step
+- Provide a hint or analogy
+- Use a tool (if needed): SymPy for symbolic math, or describe a visualization
+
+**OBSERVATION**: After student responds, observe their understanding
+- Did they grasp the concept?
+- Do they have misconceptions?
+- Are they ready for the next step?
+
+🔄 INTERACTION PATTERN:
+1. Student asks a question
+2. YOU (Thought): "Let me think about how to guide them..."
+3. YOU (Action): Ask a Socratic question about the first step
+4. Student responds
+5. YOU (Observation): Assess their understanding
+6. YOU (Thought): Decide next step based on their response
+7. YOU (Action): Guide them to the next step
+8. Repeat until student discovers the answer themselves
+
+💡 SOCRATIC QUESTION EXAMPLES:
+- "What do we know about this triangle? What information is given?"
+- "When you see sin(30°), what does that mean in terms of a triangle?"
+- "What formula connects these three pieces of information?"
+- "If we want to find the angle, what operation reverses sine?"
+- "Does your answer make sense? How can you check it?"
+
+🚫 NEVER DO THIS:
+- "The answer is 0.5"
+- "Here's the complete solution: ..."
+- "Just plug it into the formula and you get..."
+- Give step-by-step solutions that do all the work
+
+✅ ALWAYS DO THIS:
+- "What do you think the first step should be?"
+- "Great start! Now, what happens when we apply that principle?"
+- "You're on the right track! What relationship exists between sine and opposite/hypotenuse?"
+- "Excellent thinking! How can we use that to find θ?"
+
+🧰 AVAILABLE TOOLS (Use when helpful, but don't over-rely):
+1. **SymPy**: For symbolic manipulation (e.g., "Let's see what SymPy shows us about sin²(θ) + cos²(θ)")
+2. **Graphing**: Describe what a graph would look like (e.g., "Imagine plotting sin(θ) from 0° to 90°...")
+
+💾 MEMORY:
+- Remember student's weak areas from their assessment
+- Track misconceptions mentioned in this session
+- Adapt difficulty based on their responses
+- Reference previous parts of the conversation
+
+🎓 YOUR TONE:
+- Warm, encouraging, patient
+- Excited about mathematical discovery
+- Never condescending
+- Celebrate small victories
+- Use phrases like "Excellent thinking!", "You're getting closer!", "Great observation!"
+
+Remember: Your success is measured by student discovery, not by providing answers!
     
     def __init__(self, student_pre_assessment: Dict = None):
         """
-        Initialize the Customized Tutor
+        Initialize the ReAct-based Tutor with Memory Management
         
         Args:
-            student_pre_assessment: The student's previous assessment results
+            student_pre_assessment: Student's pre-assessment results for personalization
         """
         self.llm = ChatOpenAI(
             api_key=OPENAI_API_KEY,
-            model_name=MODEL_NAME,
-            temperature=TEMPERATURE,
+            model_name="gpt-4o",  # Use GPT-4o for better reasoning
+            temperature=0.7,  # Balanced creativity
             max_tokens=MAX_TOKENS
         )
-        self.student_pre_assessment = student_pre_assessment or {}
-        self.chat_history: List[Dict[str, str]] = []
-    
-    def search_concept(self, concept: str) -> str:
-        """
-        Search for concept information (simulated web search)
-        In production, you'd use Google Custom Search or similar
-        """
-        # For now, return knowledge base - in production use real web search
-        knowledge_base = {
-            "sine": "Sine is a trigonometric function. In a right triangle, sine of an angle = opposite/hypotenuse. sin(θ) ranges from -1 to 1. Special values: sin(0°)=0, sin(30°)=0.5, sin(45°)=√2/2, sin(60°)=√3/2, sin(90°)=1",
-            "cosine": "Cosine is a trigonometric function. In a right triangle, cosine of an angle = adjacent/hypotenuse. cos(θ) ranges from -1 to 1. Special values: cos(0°)=1, cos(30°)=√3/2, cos(45°)=√2/2, cos(60°)=0.5, cos(90°)=0",
-            "tangent": "Tangent is a trigonometric function. tan(θ) = sin(θ)/cos(θ) = opposite/adjacent. Special values: tan(0°)=0, tan(30°)=1/√3, tan(45°)=1, tan(60°)=√3",
-            "sohcahtoa": "SOHCAHTOA is a mnemonic: Sine=Opposite/Hypotenuse, Cosine=Adjacent/Hypotenuse, Tangent=Opposite/Adjacent. Use this to remember the three main trigonometric ratios",
-            "pythagorean identity": "sin²(θ) + cos²(θ) = 1. This fundamental identity is true for all angles θ. It comes from the Pythagorean theorem applied to the unit circle",
-            "unit circle": "The unit circle is a circle with radius 1 centered at origin. Used to visualize trigonometric functions. Any point on it has coordinates (cos(θ), sin(θ))",
-            "inverse trigonometric": "Inverse functions: arcsin, arccos, arctan. If sin(θ)=x, then θ=arcsin(x). Used to find angles when you know the ratio"
+        
+        # Student-specific memory (persistent across sessions)
+        self.student_memory = {
+            "weak_areas": student_pre_assessment.get('weak_areas', []) if student_pre_assessment else [],
+            "strong_areas": student_pre_assessment.get('strong_areas', []) if student_pre_assessment else [],
+            "difficulty_level": student_pre_assessment.get('difficulty_level', 'intermediate') if student_pre_assessment else 'intermediate',
+            "misconceptions": [],  # Track recurring errors
+            "learning_style": "visual",  # Can be updated based on interactions
+            "progress_notes": []
         }
         
-        for key, value in knowledge_base.items():
-            if key in concept.lower():
-                return value
+        # Session-specific memory (current conversation context)
+        self.session_memory = {
+            "current_problem": None,
+            "problem_steps": [],
+            "completed_steps": [],
+            "current_step": None,
+            "student_attempts": [],
+            "conversation_history": [],
+            "tools_used": []
+        }
         
-        return f"Information about {concept}: This advanced trigonometry topic requires deeper study. Use your textbook or online resources for comprehensive information."
+        # Full conversation history for context
+        self.messages: List[Dict[str, str]] = [
+            {"role": "system", "content": self.SYSTEM_PROMPT}
+        ]
+    
+    def _use_sympy_tool(self, expression: str) -> str:
+        """
+        Simulate SymPy tool for symbolic mathematics
+        In production, this would actually use sympy library
+        """
+        try:
+            import sympy as sp
+            # Parse and evaluate using sympy
+            result = sp.simplify(expression)
+            return f"SymPy shows: {result}"
+        except:
+            # Fallback if sympy not available
+            return f"Mathematical analysis of: {expression} (SymPy helps us verify identities and simplify expressions)"
+    
+    def _describe_graph(self, function: str, range_info: str) -> str:
+        """
+        Describe what a graph would look like
+        In production, this could generate actual plots with matplotlib
+        """
+        descriptions = {
+            "sin": "The sine wave starts at 0, rises to 1 at 90°, returns to 0 at 180°, goes to -1 at 270°, and returns to 0 at 360°. It creates a smooth, repeating wave pattern.",
+            "cos": "The cosine wave starts at 1, decreases to 0 at 90°, reaches -1 at 180°, returns to 0 at 270°, and completes at 1 at 360°. It's the same shape as sine but shifted.",
+            "tan": "The tangent function starts at 0, increases rapidly, and approaches infinity as it nears 90°. It has vertical asymptotes (undefined points) at 90° and 270°."
+        }
+        
+        for key, desc in descriptions.items():
+            if key in function.lower():
+                return f"📊 Graph visualization: {desc} {range_info}"
+        
+        return f"📊 If we graph {function} over {range_info}, we can see the pattern of how values change."
+    
+    def _break_into_steps(self, problem: str, concept: str) -> List[str]:
+        """
+        Break a problem into logical steps (internal reasoning)
+        """
+        # Step decomposition based on concept
+        step_templates = {
+            "sine": ["Identify the triangle parts", "Recall SOH (Sine = Opposite/Hypotenuse)", "Set up the equation", "Solve for the unknown"],
+            "cosine": ["Identify the triangle parts", "Recall CAH (Cosine = Adjacent/Hypotenuse)", "Set up the equation", "Solve for the unknown"],
+            "tangent": ["Identify the triangle parts", "Recall TOA (Tangent = Opposite/Adjacent)", "Set up the equation", "Solve for the unknown"],
+            "inverse": ["Recognize we need an angle", "Choose inverse trig function", "Apply the inverse function", "Verify the result"],
+            "identity": ["Write out the identity", "Substitute known values", "Simplify step by step", "Verify the result"]
+        }
+        
+        for key, steps in step_templates.items():
+            if key in concept.lower() or key in problem.lower():
+                return steps
+        
+        return ["Understand the question", "Identify what's given", "Choose the right approach", "Work through the solution", "Check your answer"]
     
     def teach_concept(self, question_id: int, question: Dict, student_level: str = "intermediate") -> Dict[str, Any]:
         """
-        Generate a customized teaching explanation for a concept
-        
-        Args:
-            question_id: The question ID
-            question: The question dict with concept and hint
-            student_level: Student's learning level (beginner, intermediate, advanced)
-            
-        Returns:
-            Teaching explanation
+        Teach a concept using ReAct framework with Socratic guidance
+        NEVER reveals the answer
         """
         try:
             concept = question.get('concept', '')
             hint = question.get('hint', '')
+            problem = question.get('question', '')
             
-            # Search concept information
-            concept_info = self.search_concept(concept)
+            # Update session memory
+            self.session_memory['current_problem'] = problem
+            self.session_memory['problem_steps'] = self._break_into_steps(problem, concept)
+            self.session_memory['completed_steps'] = []
+            self.session_memory['current_step'] = self.session_memory['problem_steps'][0] if self.session_memory['problem_steps'] else None
             
-            # Build teaching prompt
-            teaching_prompt = f"""
-I need to teach a {student_level} student about: {concept}
+            # Build context-aware prompt
+            context = f"""
+📚 **Current Learning Context:**
+- Concept: {concept}
+- Student Level: {student_level}
+- Weak Areas: {', '.join(self.student_memory['weak_areas']) if self.student_memory['weak_areas'] else 'None identified yet'}
+- Difficulty: {self.student_memory['difficulty_level']}
 
-Question Focus: {question.get('question', '')}
-Key Hint: {hint}
+📝 **Problem/Question:** {problem}
+🔑 **Key Hint Available:** {hint}
 
-Research/Knowledge: {concept_info}
+🎯 **Your Task (Use ReAct):**
+1. **THOUGHT**: Think about how to break this down into steps for the student
+2. **ACTION**: Ask a Socratic question about the FIRST step only (don't reveal the answer!)
+3. Guide them toward understanding the concept through discovery
 
-Based on this, create a comprehensive teaching explanation that:
-1. Starts with a simple definition
-2. Explains WHY this concept matters
-3. Provides visual descriptions (since we can't show real images)
-4. Gives 2-3 worked examples
-5. Includes a practice question
-6. Summarizes key takeaways
+Remember: 
+- DO NOT solve the problem for them
+- DO NOT give the final answer  
+- DO ask questions that lead them to figure it out
+- DO be encouraging and patient
+- DO use the hint to guide your questions, but don't reveal it directly
 
-Use a friendly, encouraging tone and break down complex ideas into simple steps.
+**Begin your tutoring response:**
 """
             
-            message = HumanMessage(content=self.SYSTEM_PROMPT + "\n\n" + teaching_prompt)
-            response = self.llm.invoke([message])
+            self.messages.append({"role": "user", "content": context})
             
-            # Store in history
-            self.chat_history.append({
-                "role": "assistant",
-                "content": response.content,
-                "question_id": question_id
+            # Get AI response
+            response = self.llm.invoke([
+                SystemMessage(content=self.SYSTEM_PROMPT),
+                HumanMessage(content=context)
+            ])
+            
+            response_text = response.content
+            
+            # Store in conversation history
+            self.messages.append({"role": "assistant", "content": response_text})
+            self.session_memory['conversation_history'].append({
+                "type": "concept_teaching",
+                "problem": problem,
+                "concept": concept,
+                "tutor_response": response_text
             })
             
             return {
                 "success": True,
                 "question_id": question_id,
                 "concept": concept,
-                "explanation": response.content,
-                "hint": hint
+                "explanation": response_text,
+                "hint": hint,
+                "react_mode": True
             }
         
         except Exception as e:
-            print(f"Error teaching concept: {e}")
+            print(f"Error in teach_concept: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "question_id": question_id
             }
     
-    def answer_student_question(self, student_question: str) -> Dict[str, Any]:
+    def answer_student_question(self, student_question: str, student_previous_response: str = None) -> Dict[str, Any]:
         """
-        Answer a student's specific question during learning
-        
-        Args:
-            student_question: The student's question
-            
-        Returns:
-            Answer and explanation
+        Answer student's question using ReAct framework
+        Continues Socratic dialogue, never reveals the answer
         """
         try:
-            # Build context from pre-assessment
-            context = ""
-            if self.student_pre_assessment:
-                weak_areas = self.student_pre_assessment.get('weak_areas', [])
-                context = f"Student's weak areas: {', '.join(weak_areas)}. Focus explanation on these areas."
+            # Add student question to memory
+            self.session_memory['student_attempts'].append({
+                "question": student_question,
+                "response": student_previous_response,
+                "timestamp": "current"
+            })
             
-            prompt = f"""
-Student Question: {student_question}
+            # Build ReAct prompt with full context
+            memory_context = f"""
+🧠 **Student Memory:**
+- Weak Areas: {', '.join(self.student_memory['weak_areas'])}
+- Known Misconceptions: {', '.join(self.student_memory['misconceptions']) if self.student_memory['misconceptions'] else 'None yet'}
+- Difficulty Level: {self.student_memory['difficulty_level']}
 
-{context}
+📝 **Current Session:**
+- Problem: {self.session_memory.get('current_problem', 'General question')}
+- Steps in Problem: {' → '.join(self.session_memory.get('problem_steps', []))}
+- Current Step: {self.session_memory.get('current_step', 'Not set')}
+- Completed Steps: {' ✓ '.join(self.session_memory.get('completed_steps', [])) if self.session_memory.get('completed_steps') else 'None yet'}
 
-Please provide a clear, step-by-step answer that:
-1. Addresses the specific question
-2. Explains the underlying concept
-3. Shows worked examples if applicable
-4. Offers a practice problem if relevant
-5. Relates to real-world applications when possible
+💬 **Recent Conversation:**
+{self._format_recent_history(3)}
+
+🎓 **Student's Current Question/Response:**
+"{student_question}"
+{f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
+
+🎯 **Your ReAct Response:**
+
+**THOUGHT**: 
+- What is the student trying to understand?
+- Do they have any misconceptions here?
+- What step are they on in the problem-solving process?
+- Are they ready to move to the next step?
+
+**ACTION**: 
+- If they're correct: Praise them and ask a question about the NEXT step
+- If they're stuck: Give a gentle hint through a question
+- If they have a misconception: Use a question to help them see the error
+- If they ask for the answer: Redirect with "Let's figure it out together! What do you think about..."
+
+**Remember**: NEVER give the complete answer. Guide them to discover it!
+
+**Your Response:**
 """
             
-            message = HumanMessage(content=self.SYSTEM_PROMPT + "\n\n" + prompt)
-            response = self.llm.invoke([message])
+            self.messages.append({"role": "user", "content": memory_context})
+            
+            # Get AI response with ReAct reasoning
+            response = self.llm.invoke(self.messages[-5:] if len(self.messages) > 5 else self.messages)
+            
+            response_text = response.content
             
             # Store in history
-            self.chat_history.append({
-                "role": "user",
-                "content": student_question
+            self.messages.append({"role": "assistant", "content": response_text})
+            self.session_memory['conversation_history'].append({
+                "type": "student_question",
+                "question": student_question,
+                "tutor_response": response_text
             })
-            self.chat_history.append({
-                "role": "assistant",
-                "content": response.content
-            })
+            
+            # Check if student seems to have completed current step
+            if self._detect_step_completion(student_question, response_text):
+                if self.session_memory['current_step']:
+                    self.session_memory['completed_steps'].append(self.session_memory['current_step'])
+                
+                # Move to next step
+                remaining_steps = [s for s in self.session_memory.get('problem_steps', []) 
+                                 if s not in self.session_memory.get('completed_steps', [])]
+                if remaining_steps:
+                    self.session_memory['current_step'] = remaining_steps[0]
             
             return {
                 "success": True,
                 "question": student_question,
-                "answer": response.content
+                "answer": response_text,
+                "current_step": self.session_memory.get('current_step'),
+                "progress": f"{len(self.session_memory.get('completed_steps', []))}/{len(self.session_memory.get('problem_steps', []))} steps",
+                "react_mode": True
             }
         
         except Exception as e:
@@ -194,6 +354,24 @@ Please provide a clear, step-by-step answer that:
                 "question": student_question
             }
     
+    def _format_recent_history(self, n: int = 3) -> str:
+        """Format recent conversation for context"""
+        history = self.session_memory.get('conversation_history', [])[-n:]
+        formatted = []
+        for entry in history:
+            if entry['type'] == 'student_question':
+                formatted.append(f"Student: {entry['question']}")
+                formatted.append(f"Tutor: {entry['tutor_response'][:100]}...")
+        return "\n".join(formatted) if formatted else "No previous conversation"
+    
+    def _detect_step_completion(self, student_input: str, tutor_response: str) -> bool:
+        """
+        Detect if student has successfully completed current step
+        Simple heuristic: look for praise words in tutor response
+        """
+        praise_indicators = ["correct", "excellent", "great", "right", "good job", "well done", "perfect"]
+        return any(praise in tutor_response.lower() for praise in praise_indicators)
+    
     def get_chat_history(self) -> List[Dict[str, str]]:
         """Get conversation history"""
-        return self.chat_history
+        return self.session_memory.get('conversation_history', [])
