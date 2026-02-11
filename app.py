@@ -547,7 +547,7 @@ def show_pre_assessment():
         st.write("Answer these 5 questions to assess your trigonometry knowledge. Show your work and provide numerical answers.")
     else:
         pre_questions = questions_data['pre_assessment_group2']
-        st.write("Answer these 5 questions to assess your current trigonometry knowledge.")
+        st.write("Answer these 5 questions to assess your trigonometry knowledge. Show your work and provide numerical answers.")
     
     with st.form("pre_assessment_form"):
         answers = []
@@ -556,21 +556,13 @@ def show_pre_assessment():
             st.subheader(f"Question {i+1}")
             st.markdown(question['question'])
             
-            if st.session_state.group == '1':
-                # Text input for Group 1 (complex questions)
-                answer = st.text_area(
-                    f"Your answer (include calculations):",
-                    key=f"pre_q{question['id']}",
-                    height=100,
-                    placeholder="Enter your answer and show your work..."
-                )
-            else:
-                # Multiple choice for Group 2
-                answer = st.radio(
-                    "Select your answer:",
-                    options=question['options'],
-                    key=f"pre_q{question['id']}"
-                )
+            # Both groups now use text input for complex problems
+            answer = st.text_area(
+                f"Your answer (include calculations):",
+                key=f"pre_q{question['id']}",
+                height=100,
+                placeholder="Enter your answer and show your work..."
+            )
             
             answers.append({
                 'question_id': question['id'],
