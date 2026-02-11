@@ -20,22 +20,25 @@ class CustomizedTutorAgent:
     
     SYSTEM_PROMPT = r"""You are an expert AI Trigonometry Tutor using the ReAct (Reasoning + Action) framework.
 
-⚠️ MATHEMATICAL NOTATION - CRITICAL:
-You MUST use proper LaTeX notation for ALL mathematical expressions.
-The format is simple: wrap math in single dollar signs like this: $\sin(\theta)$
+⚠️ MATHEMATICAL NOTATION REQUIREMENT:
+You MUST format all mathematical expressions using standard LaTeX delimiters.
+Your output will be rendered by Streamlit which converts LaTeX to actual mathematical symbols.
 
-Examples of CORRECT formatting:
-- Trig functions: $\sin(30)$, $\cos(x)$, $\tan(\theta)$
-- Fractions: $\frac{1}{2}$, $\frac{opposite}{adjacent}$
-- Greek letters: $\theta$, $\alpha$, $\pi$
-- Powers: $x^2$, $\sin^2(\theta)$
-- Roots: $\sqrt{2}$, $\sqrt{x}$
-- Degrees: $30^\circ$, $45^\circ$
-- Equations: $x = 5$, $\sin(\theta) = 0.5$
+Format guide:
+- Inline math: Use $\sin(\theta)$ which renders as sin(θ) symbol
+- Display equations: Use $$\sin^2(\theta) + \cos^2(\theta) = 1$$ which renders centered
+- Fractions: Use $\frac{1}{2}$ which renders as ½ symbol  
+- Greek letters: Use $\theta$, $\alpha$, $\pi$ which render as θ, α, π
+- Powers: Use $x^2$ which renders as x²
+- Roots: Use $\sqrt{2}$ which renders as √2
+- Degrees: Use $30^\circ$ which renders as 30°
 
-For display equations, use double dollars: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+IMPORTANT: Students will see rendered math symbols, NOT your LaTeX code.
+Example: When you write $\sin(30^\circ) = \frac{1}{2}$
+Student sees: sin(30°) = ½ (actual mathematical notation)
 
-NEVER use plain text for math: sin(30), 1/2, theta, sqrt(2) - ALWAYS wrap in $ delimiters.
+NEVER write plain text math like: sin(30) or 1/2 or theta
+ALWAYS use LaTeX delimiters: $\sin(30^\circ)$, $\frac{1}{2}$, $\theta$
 
 🎯 YOUR CORE PRINCIPLES:
 1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
@@ -225,33 +228,12 @@ Remember: Your success is measured by student discovery, not by providing answer
     
     def _format_with_sympy(self, text: str) -> str:
         """
-        Minimal post-processing - only convert obviously missed plain text math
-        Most math should already be in LaTeX from the AI
+        Pass-through function - AI should output proper LaTeX
+        Minimal intervention to preserve LaTeX formatting
         """
-        import re
-        
-        # If already has good LaTeX formatting, don't touch it
-        if text.count('$') >= 4:
-            return text
-        
-        # Only fix truly plain text that slipped through
-        # Use minimal conversions to avoid corrupting existing LaTeX
-        result = text
-        
-        # Only convert if NOT already in $ delimiters
-        simple_fixes = [
-            (r'\bsin\(', r'\\sin('),
-            (r'\bcos\(', r'\\cos('),
-            (r'\btan\(', r'\\tan('),
-        ]
-        
-        # Check if text has NO LaTeX at all
-        if '$' not in text:
-            # Convert common plain text math
-            if 'sin(' in text.lower() or 'cos(' in text.lower() or 'tan(' in text.lower():
-                result = 'Please express mathematical functions using LaTeX notation.'
-        
-        return result
+        # Just return the text as-is - AI outputs proper LaTeX
+        # Streamlit's st.markdown() and st.latex() handle rendering
+        return text
     
     def _use_sympy_tool(self, expression: str) -> str:
         """

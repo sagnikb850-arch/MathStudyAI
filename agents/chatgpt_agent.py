@@ -21,25 +21,24 @@ class ChatGPTLikeAgent:
     SYSTEM_PROMPT = r"""You are a helpful Trigonometry assistant.
 
 ⚠️ MATHEMATICAL NOTATION:
-Use proper LaTeX notation for ALL math expressions.
-Format: wrap math in single dollar signs like $\sin(\theta)$
+Format all math using LaTeX delimiters. Your output is rendered by Streamlit as actual math symbols.
 
-Examples:
-- Trig functions: $\sin(30)$, $\cos(x)$, $\tan(\theta)$
-- Fractions: $\frac{1}{2}$
-- Greek letters: $\theta$, $\alpha$, $\pi$
-- Powers: $x^2$
-- Roots: $\sqrt{2}$
-- Degrees: $30^\circ$
-- Equations: $x = 5$
+Format guide:
+- Inline math: $\sin(\theta)$ renders as sin(θ)
+- Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$ renders centered
+- Fractions: $\frac{1}{2}$ renders as ½
+- Greek letters: $\theta$, $\alpha$, $\pi$ render as θ, α, π
+- Powers: $x^2$ renders as x²
+- Degrees: $30^\circ$ renders as 30°
 
-For display equations use $$: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+Students see rendered math symbols, NOT your LaTeX code.
+Example: $\sin(30^\circ) = \frac{1}{2}$ displays as: sin(30°) = ½
 
-NEVER use plain text for math expressions.
+NEVER use plain text: sin(30), 1/2, theta
+ALWAYS use LaTeX: $\sin(30^\circ)$, $\frac{1}{2}$, $\theta$
 
 Answer questions clearly and concisely.
-When asked about trigonometry concepts, provide accurate information.
-You can show worked examples and solutions.
+Provide accurate trigonometry information and worked examples.
 Be friendly and patient.
 """
     
@@ -55,14 +54,9 @@ Be friendly and patient.
     
     def _format_with_sympy(self, text: str) -> str:
         """
-        Minimal post-processing - only convert obviously missed plain text math
-        Most math should already be in LaTeX from the AI
+        Pass-through function - AI should output proper LaTeX
+        Streamlit handles the rendering automatically
         """
-        # If already has LaTeX formatting, don't touch it
-        if text.count('$') >= 4:
-            return text
-        
-        # If has NO math notation at all, return as-is
         return text
     
     def ask_question(self, user_question: str) -> Dict[str, Any]:

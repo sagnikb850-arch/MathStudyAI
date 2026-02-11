@@ -62,8 +62,9 @@ storage = DataStorage('data')
 # Helper function to render LaTeX expressions properly
 def render_latex_content(text):
     """
-    Render text with LaTeX expressions using st.latex() for display math
-    and proper formatting for inline math
+    Render text with LaTeX expressions - both display and inline math
+    Display math ($$...$$) uses st.latex() for centered equations
+    Inline math ($...$) stays in markdown for proper rendering
     """
     import re
     
@@ -74,10 +75,13 @@ def render_latex_content(text):
     for i, part in enumerate(parts):
         if i % 2 == 0:  # Regular text with possible inline math
             if part.strip():
-                # For inline math, st.markdown handles it well when properly formatted
-                st.markdown(part, unsafe_allow_html=True)
-        else:  # Display math content
+                # st.markdown automatically renders LaTeX with $ delimiters
+                # This will show sin(θ), not $\sin(\theta)$
+                st.markdown(part)
+        else:  # Display math content (between $$...$$)
             if part.strip():
+                # st.latex renders the math without $ delimiters
+                # This shows centered, formatted equations
                 st.latex(part.strip())
 
 # Initialize agents (lazy load)
