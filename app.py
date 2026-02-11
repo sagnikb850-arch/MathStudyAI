@@ -85,9 +85,19 @@ def render_latex_content(text):
     if not text or not text.strip():
         return
     
-    # Simply render the text with LaTeX delimiters
-    # MathJax (loaded in page header) will automatically render all math
-    st.markdown(text, unsafe_allow_html=True)
+    # Render content with MathJax processing
+    # Wrap in a div and trigger MathJax typesetting
+    content_html = f"""
+    <div class="math-content">
+        {text}
+    </div>
+    <script>
+        if (typeof MathJax !== 'undefined') {{
+            MathJax.typesetPromise();
+        }}
+    </script>
+    """
+    st.markdown(content_html, unsafe_allow_html=True)
 
 # Initialize agents (lazy load)
 @st.cache_resource
