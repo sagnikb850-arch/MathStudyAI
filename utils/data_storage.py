@@ -69,13 +69,16 @@ class DataStorage:
                        answers: List[str], score: int = 0) -> bool:
         """Save assessment answers"""
         try:
+            timestamp = datetime.now().isoformat()
+            
+            # Save to JSON (for backward compatibility)
             df = pd.read_csv(self.assessments_file)
             
             new_row = {
                 'student_id': student_id,
                 'group': group,
                 'assessment_type': assessment_type,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timestamp,
                 'q1_answer': answers[0] if len(answers) > 0 else '',
                 'q2_answer': answers[1] if len(answers) > 1 else '',
                 'q3_answer': answers[2] if len(answers) > 2 else '',
@@ -127,7 +130,7 @@ class DataStorage:
                 data[student_id] = []
             
             data[student_id].append({
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timestamp,
                 'progress': progress
             })
             
@@ -218,9 +221,15 @@ class DataStorage:
             return {}    
     # ==================== NEW FEATURES ====================
     
-    def save_chat_message(self, student_id: str, group: str, role: str, message: str) -> bool:
-        """Save a chat message to history"""
+    def save_chat_message(self, student_id: str, group: str, role: str, message: str, concept: str = None) -> bool:
+        """Save a chat message to history (both JSON and CSV)"""
         try:
+
+            timestamp = datetime.now().isoformat()
+
+            
+
+            # Save to JSON (for backward compatibility)
             with open(self.chat_history_file, 'r') as f:
                 data = json.load(f)
             
@@ -228,7 +237,7 @@ class DataStorage:
                 data[student_id] = []
             
             data[student_id].append({
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timestamp,
                 'group': group,
                 'role': role,  # 'user' or 'assistant'
                 'message': message
@@ -237,6 +246,26 @@ class DataStorage:
             with open(self.chat_history_file, 'w') as f:
                 json.dump(data, f, indent=2)
             
+            
+            # Save to CSV in real-time
+            if 'Group 1' in group:
+                csv_file = os.path.join(self.data_dir, "group1_chat_history.csv")
+                self._append_to_csv(csv_file, {
+                    'User ID': student_id,
+                    'Date': timestamp,
+                    'Concept/Query': concept or 'General Question',
+                    'Role': role.title(),
+                    'Message': message
+                }, group=1)
+            elif group == 'Group 2':
+                csv_file = os.path.join(self.data_dir, "group2_chat_history.csv")
+                self._append_to_csv(csv_file, {
+                    'User ID': student_id,
+                    'Date': timestamp,
+                    'Query': 'Chat Conversation',
+                    'Role': role.title(),
+                    'Message': message
+                }, group=2)
             return True
         except Exception as e:
             print(f"Error saving chat message: {e}")
@@ -245,6 +274,12 @@ class DataStorage:
     def get_chat_history(self, student_id: str) -> List[Dict]:
         """Get chat history for a student"""
         try:
+
+            timestamp = datetime.now().isoformat()
+
+            
+
+            # Save to JSON (for backward compatibility)
             with open(self.chat_history_file, 'r') as f:
                 data = json.load(f)
             return data.get(student_id, [])
@@ -255,6 +290,12 @@ class DataStorage:
     def get_all_chat_histories(self) -> Dict[str, List[Dict]]:
         """Get all chat histories (for admin)"""
         try:
+
+            timestamp = datetime.now().isoformat()
+
+            
+
+            # Save to JSON (for backward compatibility)
             with open(self.chat_history_file, 'r') as f:
                 return json.load(f)
         except Exception as e:
@@ -537,3 +578,33 @@ class DataStorage:
         except Exception as e:
             print(f"Error exporting all chat histories: {e}")
             return False
+
+
+
+    def _append_to_csv(self, csv_file: str, row_data: dict, group: int) -> bool:
+        """Helper method to append a row to CSV file"""
+        try:
+            # Define columns based on group
+            if group == 1:
+                columns = ['User ID', 'Date', 'Concept/Query', 'Role', 'Message']
+            else:  # group == 2
+                columns = ['User ID', 'Date', 'Query', 'Role', 'Message']
+            
+            # Read existing data or create new DataFrame
+            if os.path.exists(csv_file):
+                df = pd.read_csv(csv_file)
+            else:
+                df = pd.DataFrame(columns=columns)
+            
+            # Append new row
+            new_row = pd.DataFrame([row_data])
+            df = pd.concat([df, new_row], ignore_index=True)
+            
+            # Save to CSV`n            df.to_csv(csv_file, index=False)
+            return True
+        except Exception as e:
+            print(f"Error appending to CSV: {e}")
+            return False
+
+
+

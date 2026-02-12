@@ -1055,7 +1055,8 @@ def show_group1_learning():
                                 st.session_state.student_id,
                                 'Group 1',
                                 'assistant',
-                                explanation['explanation']
+                                explanation['explanation'],
+                                concept=question['concept']
                             )
                             
                             # Save learning progress with FULL response for admin
