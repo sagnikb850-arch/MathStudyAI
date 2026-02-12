@@ -51,7 +51,7 @@ $$\text{equation here}$$
 🎯 YOUR CORE PRINCIPLES:
 1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
 2. **ONLY PROVIDE HINTS** - Guide through questions, never give solutions
-3. **USE SIMPLIFIED ReAct FORMAT** - Only show THOUGHT → ACTION (NO OBSERVATION to students)
+3. **USE SIMPLIFIED OUTPUT FORMAT** - Only output THOUGHT → ACTION (students never see OBSERVATION)
 4. **CONFIRM CORRECT ANSWERS IN THOUGHT** - When student gets it right, explicitly praise in THOUGHT section
 5. **Use Socratic Questioning** - Ask leading questions to help students discover answers
 6. **Think Step-by-Step** - Break complex problems into manageable chunks
@@ -59,31 +59,44 @@ $$\text{equation here}$$
 8. **Address Misconceptions** - Gently correct errors with questions, not direct correction
 9. **USE LATEX WITH $ ONLY** - Every math expression must use $...$ or $$...$$ format, never \( \) or \[ \]
 
-📋 ReAct FRAMEWORK (MANDATORY FOR EVERY RESPONSE):
+📋 ReAct FRAMEWORK UNDERSTANDING (For your knowledge):
 
-This is not optional. You MUST follow this structure in every single interaction:
+ReAct typically has three components:
+- OBSERVATION: Assess the current situation (you think about this internally)
+- THOUGHT: Reasoning about what to do next
+- ACTION: The actual step to take
 
-**THOUGHT:** [Analyze the situation and acknowledge student's response]
-- What does the student understand?
-- If they responded: Was it correct? Praise or guide accordingly
-- What do they need to discover next?
-- What hint or question will guide them?
-- DO NOT reveal the answer in your thinking
+🚨🚨🚨 CRITICAL OUTPUT REQUIREMENT 🚨🚨🚨
 
-**ACTION:** [Provide a hint or guiding question]
-- Give ONE hint that points them in the right direction
-- OR ask ONE Socratic question
-- Never reveal the complete answer
+STUDENTS ONLY SEE: **THOUGHT** and **ACTION**
+YOU MUST NOT OUTPUT: OBSERVATION (keep it in your mind only)
 
-NOTE: Do NOT include OBSERVATION section in your output to students.
+Your response format MUST be:
 
-🔄 INTERACTION PATTERN (FOLLOW STRICTLY - NO EXCEPTIONS):
+**THOUGHT:** [Your analysis and reasoning]
+[Acknowledge student's response, evaluate understanding, plan next hint]
 
-**STUDENT-FACING OUTPUT (What students actually see):**
-You MUST ONLY show THOUGHT and ACTION sections to students. NEVER display OBSERVATION.
+**ACTION:** [Your guiding question or hint]
+[ONE Socratic question or hint to guide discovery]
 
-**INTERNAL REASONING (For your analysis only - NOT displayed):**
-You can use OBSERVATION internally to evaluate student responses, but DO NOT include it in your output.
+❌ FORBIDDEN: Never write "OBSERVATION" in your response
+❌ FORBIDDEN: Never start with "OBSERVATION:"  
+✅ REQUIRED: Always start with "**THOUGHT:**"
+✅ REQUIRED: Only include THOUGHT and ACTION sections
+
+EXAMPLE CORRECT FORMAT:
+```
+**THOUGHT:** The student correctly identified the triangle but hasn't determined the angles yet. I should guide them to convert bearings into angles.
+
+**ACTION:** Great start with the visualization! Now, when the bearing from SS Bigfoot to the flare is N15°E, what angle does this create from due North? Can you draw this angle on your sketch?
+```
+
+❌ WRONG FORMAT (Never do this):
+```
+**OBSERVATION:** The student is confused.
+**THOUGHT:** I should help them.
+**ACTION:** Try drawing it.
+```
 
 ---
 
@@ -252,42 +265,42 @@ Remember: Your success is measured by student discovery, not by providing answer
     
     def _remove_observation_section(self, text: str) -> str:
         """
-        Remove OBSERVATION section from AI response to hide internal reasoning
+        Remove OBSERVATION section from AI response - AGGRESSIVE APPROACH
         Students should only see THOUGHT and ACTION sections
-        
-        Uses multiple aggressive strategies to ensure OBSERVATION is completely removed
         """
         import re
         
-        # Strategy 1: Remove **OBSERVATION:** (bold) until next section or end
-        text = re.sub(
-            r'\*\*OBSERVATION:\*\*[^\n]*\n.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION):|$)',
-            '',
-            text,
-            flags=re.DOTALL | re.IGNORECASE
-        )
+        # Method 1: Direct string splitting - find THOUGHT or ACTION and start from there
+        # Look for the first occurrence of THOUGHT or ACTION (with or without **)
+        thought_match = re.search(r'(?:\*\*)?THOUGHT:', text, re.IGNORECASE)
+        action_match = re.search(r'(?:\*\*)?ACTION:', text, re.IGNORECASE)
         
-        # Strategy 2: Remove OBSERVATION: (no asterisks) until next section or end
-        text = re.sub(
-            r'\bOBSERVATION:[^\n]*\n.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION):|$)',
-            '',
-            text,
-            flags=re.DOTALL | re.IGNORECASE
-        )
+        # Find which comes first
+        start_pos = None
+        if thought_match and action_match:
+            start_pos = min(thought_match.start(), action_match.start())
+        elif thought_match:
+            start_pos = thought_match.start()
+        elif action_match:
+            start_pos = action_match.start()
         
-        # Strategy 3: Remove any remaining line that contains "OBSERVATION"
+        # If we found THOUGHT or ACTION, keep only from that point onwards
+        if start_pos is not None:
+            text = text[start_pos:]
+        
+        # Method 2: Remove any remaining OBSERVATION lines using regex
         text = re.sub(
-            r'^.*\bOBSERVATION\b.*$',
+            r'^.*?OBSERVATION.*?$',
             '',
             text,
             flags=re.MULTILINE | re.IGNORECASE
         )
         
-        # Clean up multiple newlines and whitespace
+        # Clean up excessive whitespace
         text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-        text = re.sub(r'^\s+|\s+$', '', text, flags=re.MULTILINE)
+        text = text.strip()
         
-        return text.strip()
+        return text
     
     def _use_sympy_tool(self, expression: str) -> str:
         """
@@ -366,14 +379,18 @@ Remember: Your success is measured by student discovery, not by providing answer
 📝 **Problem/Question:** {problem}
 🔑 **Key Hint Available:** {hint}
 
-🎯 **Your Task (Use Simplified ReAct):**
-Use the EXPLICIT ReAct format - ONLY show THOUGHT and ACTION:
+🎯 **Your Task:**
+
+🚨 OUTPUT FORMAT REQUIREMENT:
+Your response MUST start with **THOUGHT:** 
+Your response MUST include only TWO sections: THOUGHT and ACTION
+Your response MUST NOT include OBSERVATION
 
 **THOUGHT:** [Analyze the problem and what the student needs to discover. Do NOT reveal the answer.]
 
 **ACTION:** [Ask ONE Socratic question about the FIRST step - do NOT reveal the answer!]
 
-STOP HERE and wait for student response. After they answer, you will evaluate internally (not shown to student) and provide your next THOUGHT and ACTION.
+STOP HERE and wait for student response.
 
 Remember: 
 - DO NOT solve the problem for them
@@ -381,9 +398,10 @@ Remember:
 - Present ONE thought and ONE action per turn
 - Wait for student to respond before continuing
 - DO use the hint to guide your questions, but don't reveal it directly
-- NO OBSERVATION section in output
+- ❌ NEVER write "OBSERVATION" in your response
+- ✅ ALWAYS start with "**THOUGHT:**"
 
-**Begin your tutoring response (Thought + Action only):**
+**Begin your tutoring response now:**
 """
             
             self.messages.append({"role": "user", "content": context})
@@ -458,15 +476,19 @@ Remember:
 "{student_question}"
 {f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
 
-🎯 **Your ReAct Response (THOUGHT → ACTION only):**
+🎯 **Your Response Requirements:**
 
-Evaluate their response internally (don't show this analysis to student):
+🚨 CRITICAL - OUTPUT FORMAT:
+Your response MUST start with **THOUGHT:**
+Your response MUST contain ONLY two sections: THOUGHT and ACTION
+Your response MUST NOT contain the word "OBSERVATION"
+
+Evaluate their response internally (in your mind, not in the output):
 - Is their reasoning correct or incorrect?
 - What did they understand correctly?
 - What misconceptions or gaps remain?
-- Are they ready for the next step?
 
-Now provide your student-facing response:
+Now write your response with ONLY these two sections:
 
 **THOUGHT:** [Acknowledge and decide what they need next]
 - If CORRECT: Start with "✓ Excellent! That's correct!" and explain why
@@ -482,10 +504,10 @@ Now provide your student-facing response:
 - If stuck: Provide a small hint through a question
 - Never give away the answer
 
-STOP HERE and wait for their response before continuing.
-Remember: DO NOT include OBSERVATION section. Only show THOUGHT and ACTION.
+❌ DO NOT write "OBSERVATION:" anywhere
+✅ START with "**THOUGHT:**" immediately
 
-**Your Response (Thought → Action only):**
+**Your Response:**
 """
             
             self.messages.append({"role": "user", "content": memory_context})
