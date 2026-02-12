@@ -4,7 +4,7 @@
 This guide will help you set up Google Drive integration to automatically sync all chat history, assessments, and student data to your Google Drive folder.
 
 **Your Google Drive Folder:**
-https://drive.google.com/drive/folders/1kq4MQZsYeiF3-5UUGN7FDunc2dhT6suO
+https://drive.google.com/drive/u/0/folders/1YMvj1BCtsGXE-6tB9fdTY6ESjSUFTZBf
 
 ---
 
@@ -47,7 +47,7 @@ https://drive.google.com/drive/folders/1kq4MQZsYeiF3-5UUGN7FDunc2dhT6suO
 
 ## Step 5: Share Google Drive Folder
 
-1. Open your Google Drive folder: https://drive.google.com/drive/folders/1kq4MQZsYeiF3-5UUGN7FDunc2dhT6suO
+1. Open your Google Drive folder: https://drive.google.com/drive/u/0/folders/1YMvj1BCtsGXE-6tB9fdTY6ESjSUFTZBf
 2. Click "Share" button
 3. Add the service account email (looks like: `mathstudyai-sync@your-project.iam.gserviceaccount.com`)
 4. Give it **Editor** access
@@ -165,7 +165,7 @@ Files are synced automatically:
 - Give the service account "Editor" permissions
 
 ### Files not appearing in Drive:
-- Check the folder ID is correct: `1kq4MQZsYeiF3-5UUGN7FDunc2dhT6suO`
+- Check the folder ID is correct: `1YMvj1BCtsGXE-6tB9fdTY6ESjSUFTZBf`
 - Verify service account has access to the folder
 - Check Streamlit logs for error messages
 

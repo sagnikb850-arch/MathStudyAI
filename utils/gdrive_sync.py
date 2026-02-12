@@ -19,7 +19,7 @@ class GoogleDriveSync:
     """
     
     # Your Google Drive folder ID from the URL
-    FOLDER_ID = "1kq4MQZsYeiF3-5UUGN7FDunc2dhT6suO"
+    FOLDER_ID = "1YMvj1BCtsGXE-6tB9fdTY6ESjSUFTZBf"
     
     def __init__(self):
         """Initialize Google Drive API client"""
