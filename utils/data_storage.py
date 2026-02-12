@@ -31,6 +31,14 @@ class DataStorage:
         
         # Initialize files if they don't exist
         self._initialize_files()
+        
+        # Initialize Google Drive sync
+        try:
+            from utils.gdrive_sync import get_gdrive_sync
+            self.gdrive = get_gdrive_sync()
+        except Exception as e:
+            print(f" Google Drive sync not available: {e}")
+            self.gdrive = None
     
     def _initialize_files(self):
         """Create empty files if they don't exist"""
@@ -246,6 +254,9 @@ class DataStorage:
             with open(self.chat_history_file, 'w') as f:
                 json.dump(data, f, indent=2)
             
+            # Sync JSON to Google Drive
+            self._sync_to_gdrive(self.chat_history_file)
+            
             
             # Save to CSV in real-time
             if 'Group 1' in group:
@@ -257,6 +268,7 @@ class DataStorage:
                     'Role': role.title(),
                     'Message': message
                 }, group=1)
+                self._sync_to_gdrive(csv_file)
             elif group == 'Group 2':
                 csv_file = os.path.join(self.data_dir, "group2_chat_history.csv")
                 self._append_to_csv(csv_file, {
@@ -266,6 +278,7 @@ class DataStorage:
                     'Role': role.title(),
                     'Message': message
                 }, group=2)
+                self._sync_to_gdrive(csv_file)
             return True
         except Exception as e:
             print(f"Error saving chat message: {e}")
@@ -608,4 +621,14 @@ class DataStorage:
 
 
 
+
+
+
+    def _sync_to_gdrive(self, file_path: str):
+        """Sync a file to Google Drive if enabled"""
+        if self.gdrive and self.gdrive.enabled:
+            try:
+                self.gdrive.upload_file(file_path)
+            except Exception as e:
+                print(f" Google Drive sync failed for {file_path}: {e}")
 
