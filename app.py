@@ -80,13 +80,28 @@ storage = DataStorage('data')
 def render_latex_content(text):
     """
     Render LaTeX as actual math symbols using MathJax
-    MathJax automatically converts $...$ and $$...$$ to rendered math
+    Handles multiple LaTeX formats: $...$, $$...$$, \(...\), \[...\], and ( ... )
     """
     if not text or not text.strip():
         return
     
+    import re
+    
+    # Convert common markdown LaTeX formats to MathJax format
+    # Convert \( ... \) to $ ... $ (inline math)
+    text = re.sub(r'\\\((.*?)\\\)', r'$\1$', text)
+    
+    # Convert \[ ... \] to $$ ... $$ (display math)
+    text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text, flags=re.DOTALL)
+    
+    # Convert ( ... ) with LaTeX commands inside to $ ... $ (common AI output format)
+    # Only convert if there are LaTeX commands inside the parentheses
+    text = re.sub(r'\(\s*\\([a-zA-Z]+[^)]*)\)', r'$\\\1$', text)
+    
+    # Convert [ ... ] with LaTeX commands to $$ ... $$
+    text = re.sub(r'\[\s*\\([a-zA-Z]+[^\]]*)\]', r'$$\\\1$$', text)
+    
     # Render content with MathJax processing
-    # Wrap in a div and trigger MathJax typesetting
     content_html = f"""
     <div class="math-content">
         {text}
