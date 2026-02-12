@@ -124,12 +124,13 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📈 Progress Report",
         "🏆 Comparison",
         "📝 Manage Questions",
         "💡 Practice Questions",
-        "💬 Full Chat History (with OBSERVATION)"
+        "💬 Full Chat History (with OBSERVATION)",
+        "📋 Pre-Assessment Results"
     ])
     
     with tab1:
@@ -146,6 +147,9 @@ def show_admin_dashboard():
     
     with tab5:
         show_admin_full_chat_history()
+    
+    with tab6:
+        show_admin_preassessment_results()
 
 
 def show_admin_progress():
@@ -509,6 +513,113 @@ def show_admin_full_chat_history():
             st.info("No student chat history available yet.")
     else:
         st.info("No learning progress data found. Students need to start learning first.")
+
+
+def show_admin_preassessment_results():
+    """Display pre-assessment results for each participant"""
+    st.header("📋 Pre-Assessment Results")
+    st.info("View detailed pre-assessment answers from all participants")
+    
+    # Check if assessments.csv exists
+    if os.path.exists('data/assessments.csv'):
+        assessments_df = pd.read_csv('data/assessments.csv')
+        
+        # Filter for pre-assessments only
+        pre_assessments = assessments_df[assessments_df['assessment_type'] == 'pre'].copy()
+        
+        if len(pre_assessments) > 0:
+            # Add filters
+            col1, col2 = st.columns(2)
+            with col1:
+                filter_group = st.selectbox(
+                    "Filter by Group",
+                    ["All", "Group 1", "Group 2"],
+                    key="pre_assess_group_filter"
+                )
+            
+            with col2:
+                # Get unique students
+                students = pre_assessments['student_id'].unique().tolist()
+                filter_student = st.selectbox(
+                    "Filter by Student",
+                    ["All"] + students,
+                    key="pre_assess_student_filter"
+                )
+            
+            # Apply filters
+            filtered_df = pre_assessments.copy()
+            if filter_group != "All":
+                group_num = '1' if filter_group == "Group 1" else '2'
+                filtered_df = filtered_df[filtered_df['group'] == group_num]
+            if filter_student != "All":
+                filtered_df = filtered_df[filtered_df['student_id'] == filter_student]
+            
+            st.divider()
+            
+            # Display results for each participant
+            st.subheader(f"Pre-Assessment Answers ({len(filtered_df)} participants)")
+            
+            for idx, row in filtered_df.iterrows():
+                student_id = row['student_id']
+                group = f"Group {row['group']}"
+                timestamp = row['timestamp']
+                
+                with st.expander(f"👤 {student_id} - {group} - {timestamp}"):
+                    # Create columns for better display
+                    st.markdown(f"**Student ID:** {student_id}")
+                    st.markdown(f"**Group:** {group}")
+                    st.markdown(f"**Submitted:** {timestamp}")
+                    
+                    st.divider()
+                    
+                    # Display each question and answer
+                    for q_num in range(1, 6):
+                        q_col = f'q{q_num}_answer'
+                        if q_col in row and pd.notna(row[q_col]):
+                            st.markdown(f"### Question {q_num}")
+                            st.markdown(f"**Answer:** {row[q_col]}")
+                            st.write("")
+                    
+                    # Show performance metrics if available
+                    st.divider()
+                    st.markdown("**Performance Metrics:**")
+                    
+                    # Check if performance data exists
+                    if os.path.exists('data/performance_ratings.csv'):
+                        perf_df = pd.read_csv('data/performance_ratings.csv')
+                        student_perf = perf_df[
+                            (perf_df['student_id'] == student_id) & 
+                            (perf_df['assessment_type'] == 'pre')
+                        ]
+                        
+                        if len(student_perf) > 0:
+                            perf_row = student_perf.iloc[0]
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Score", f"{perf_row['score_percentage']:.1f}%")
+                            with col2:
+                                st.metric("Correct Answers", f"{perf_row['correct_answers']}/{perf_row['total_questions']}")
+                            with col3:
+                                st.metric("Difficulty", perf_row['difficulty_level'])
+                        else:
+                            st.info("Performance analysis not available for this student")
+                    else:
+                        st.info("Performance data not available")
+            
+            st.divider()
+            
+            # Download button
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Pre-Assessment Data as CSV",
+                data=csv,
+                file_name=f"pre_assessment_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No pre-assessment submissions yet.")
+    else:
+        st.info("No assessment data available. Students need to complete pre-assessments first.")
 
 
 # ============================================================================
