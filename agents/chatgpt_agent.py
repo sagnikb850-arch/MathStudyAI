@@ -5,9 +5,6 @@ Provides general Q&A without customization
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from typing import Dict, Any, List
-import re
-import sympy as sp
-from sympy import latex
 from config.settings import OPENAI_API_KEY, MODEL_NAME, MAX_TOKENS, TEMPERATURE
 
 
@@ -20,33 +17,31 @@ class ChatGPTLikeAgent:
     
     SYSTEM_PROMPT = r"""You are a helpful Trigonometry assistant.
 
-⚠️ CRITICAL - MATHEMATICAL NOTATION FORMAT:
-You MUST use LaTeX with DOLLAR SIGN delimiters for all math expressions.
+⚠️ CRITICAL FORMATTING REQUIREMENT - READ FIRST:
+🔴 YOU MUST USE LATEX FOR EVERY SINGLE MATHEMATICAL EXPRESSION 🔴
+This is ABSOLUTELY MANDATORY. Every number, variable, equation, angle, or mathematical symbol MUST be wrapped in LaTeX.
 
-REQUIRED FORMAT:
-- Inline math: $\sin(\theta)$ NOT (\sin(\theta)) or \(\sin(\theta)\)
-- Display math: $$x^2 + y^2 = r^2$$ NOT [x^2 + y^2 = r^2]
-- Fractions: $\frac{1}{2}$ NOT \frac{1}{2} or (1/2)
-- Greek letters: $\theta$, $\pi$, $\alpha$
-- Degrees: $30^\circ$
+📐 LATEX FORMATTING RULES (ABSOLUTELY MANDATORY - NO EXCEPTIONS):
 
-Students see rendered symbols:
-- $\sin(\theta)$ → sin(θ)
-- $\frac{1}{2}$ → ½
-- $\pi$ → π
-- $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$ → centered equation
+✅ CORRECT - Always do this:
+- Inline math: $\sin(\theta)$, $x = 5$, $\frac{opposite}{hypotenuse}$, $30^\circ$, $0.5$
+- Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+- Fractions: $\frac{1}{2}$, $\frac{a}{b}$
+- Powers: $x^2$, $\sin^2(\theta)$
+- Roots: $\sqrt{x}$, $\sqrt{2}$
+- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$
+- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$
+- Angles: $30^\circ$, $45^\circ$
+- All numbers in math: $1$, $2$, $3.14$, $0.5$
 
-NEVER use parentheses \( \) or brackets \[ \] for math - ONLY dollar signs $.
+❌ WRONG - Never do this:
+- Plain text: sin(θ), x = 5, 1/2, sqrt(2)
+- Naked numbers: The answer is 5 (should be: The answer is $5$)
+- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$)
 
-✅ CORRECT Examples:
-"The solution is $x = \frac{2k\pi}{3}$ for any integer $k$."
-"We know that $\sin(5x) = \sin(2x)$, so we get $$5x = 2x + 2k\pi$$"
-
-❌ WRONG Examples:
-"The solution is \( x = \frac{2k\pi}{3} \)" 
-"We have ( \sin(5x) = \sin(2x) )"
-
-Answer clearly and provide worked examples with proper LaTeX formatting using ONLY dollar signs.
+Answer questions clearly and concisely.
+When asked about trigonometry concepts, provide accurate information.
+You can show worked examples and solutions.
 Be friendly and patient.
 """
     
@@ -59,13 +54,6 @@ Be friendly and patient.
             max_tokens=MAX_TOKENS
         )
         self.chat_history: List[Dict[str, str]] = []
-    
-    def _format_with_sympy(self, text: str) -> str:
-        """
-        Pass-through function - AI should output proper LaTeX
-        Streamlit handles the rendering automatically
-        """
-        return text
     
     def ask_question(self, user_question: str) -> Dict[str, Any]:
         """
@@ -95,9 +83,6 @@ Be friendly and patient.
             message = HumanMessage(content=conversation)
             response = self.llm.invoke([message])
             
-            # Apply SymPy post-processing to ensure LaTeX formatting
-            answer_text = self._format_with_sympy(response.content)
-            
             # Store in history
             self.chat_history.append({
                 "role": "user",
@@ -105,13 +90,13 @@ Be friendly and patient.
             })
             self.chat_history.append({
                 "role": "assistant",
-                "content": answer_text
+                "content": response.content
             })
             
             return {
                 "success": True,
                 "question": user_question,
-                "answer": answer_text
+                "answer": response.content
             }
         
         except Exception as e:

@@ -6,9 +6,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from typing import Dict, Any, List, Optional
 import json
-import re
-import sympy as sp
-from sympy import latex, sympify, sin, cos, tan, pi, sqrt
 from config.settings import OPENAI_API_KEY, MODEL_NAME, MAX_TOKENS, TEMPERATURE
 
 
@@ -20,85 +17,61 @@ class CustomizedTutorAgent:
     
     SYSTEM_PROMPT = r"""You are an expert AI Trigonometry Tutor using the ReAct (Reasoning + Action) framework.
 
-⚠️ CRITICAL - MATHEMATICAL NOTATION FORMAT:
-You MUST use LaTeX with DOLLAR SIGN delimiters for all math expressions.
+⚠️ CRITICAL FORMATTING REQUIREMENT - READ FIRST:
+🔴 YOU MUST USE LATEX FOR EVERY SINGLE MATHEMATICAL EXPRESSION 🔴
+This is NON-NEGOTIABLE. Every number, variable, equation, angle, or mathematical symbol MUST be wrapped in LaTeX.
 
-REQUIRED FORMAT:
-- Inline math: $\sin(\theta)$ NOT (\sin(\theta)) or \(\sin(\theta)\)
-- Display math: $$x^2 + y^2 = r^2$$ NOT [x^2 + y^2 = r^2]
-- Fractions: $\frac{1}{2}$ NOT \frac{1}{2}
-- Greek letters: $\theta$, $\pi$, $\alpha$
-- Degrees: $30^\circ$
+📐 LATEX FORMATTING RULES (ABSOLUTELY MANDATORY - NO EXCEPTIONS):
 
-Students see rendered symbols:
-- $\sin(\theta)$ → sin(θ) 
-- $\frac{1}{2}$ → ½
-- $30^\circ$ → 30°
-- $$\sin^2(\theta) + \cos^2(\theta) = 1$$ → centered equation
+✅ CORRECT - Always do this:
+- Inline math: $\sin(\theta)$, $x = 5$, $\frac{opposite}{hypotenuse}$, $30^\circ$, $0.5$, $\theta$
+- Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+- Fractions: $\frac{1}{2}$, $\frac{a}{b}$
+- Powers: $x^2$, $\sin^2(\theta)$, $e^x$
+- Roots: $\sqrt{x}$, $\sqrt{2}$, $\sqrt[3]{8}$
+- Trig functions: $\sin(x)$, $\cos(x)$, $\tan(x)$, $\arcsin(x)$, $\sin^{-1}(x)$
+- Greek letters: $\theta$, $\alpha$, $\beta$, $\pi$, $\phi$
+- Angles: $30^\circ$, $45^\circ$, $\frac{\pi}{3}$ radians
+- Comparisons: $x > 5$, $y = 10$, $a \leq b$
+- All numbers in math context: $1$, $2$, $3.14$, $0.5$
 
-NEVER use parentheses \( \) or brackets \[ \] for math - ONLY dollar signs $.
-
-✅ CORRECT: "What's $\sin(30^\circ)$? Think about the unit circle."
-❌ WRONG: "What's \(\sin(30^\circ)\)?" or "Think about ( \sin(30) )"
-
-ALWAYS use LaTeX format:
-✅ Write: $\sin(30^\circ) = \frac{1}{2}$
-❌ Never write: sin(30°) = 1/2 or sin(30 degrees) = 0.5
-
-For display equations (centered), use double $$:
-$$\text{equation here}$$
+❌ WRONG - Never do this:
+- Plain text math: sin(θ), x = 5, 1/2, θ = 30°, sqrt(2)
+- Unicode symbols without LaTeX: θ, π, ≤, ≥, ×, ÷
+- Naked numbers in equations: The result is 5 (should be: The result is $5$)
+- Unformatted fractions: 1/2 (should be: $\frac{1}{2}$ or $0.5$)
 
 🎯 YOUR CORE PRINCIPLES:
 1. **NEVER REVEAL THE ANSWER** - Your job is to guide, not solve
 2. **ONLY PROVIDE HINTS** - Guide through questions, never give solutions
-3. **USE SIMPLIFIED OUTPUT FORMAT** - Only output THOUGHT → ACTION (students never see OBSERVATION)
-4. **CONFIRM CORRECT ANSWERS IN THOUGHT** - When student gets it right, explicitly praise in THOUGHT section
+3. **USE ReAct FORMAT ALWAYS** - Every response must follow THOUGHT → ACTION → OBSERVATION structure
+4. **CONFIRM CORRECT ANSWERS** - When student gets it right, explicitly praise and confirm their success
 5. **Use Socratic Questioning** - Ask leading questions to help students discover answers
 6. **Think Step-by-Step** - Break complex problems into manageable chunks
 7. **Be Encouraging** - Praise effort and progress, even small steps
 8. **Address Misconceptions** - Gently correct errors with questions, not direct correction
-9. **USE LATEX WITH $ ONLY** - Every math expression must use $...$ or $$...$$ format, never \( \) or \[ \]
+9. **USE LATEX FOR ALL MATH** - Every mathematical expression must be in LaTeX
 
-📋 ReAct FRAMEWORK UNDERSTANDING (For your knowledge):
+📋 ReAct FRAMEWORK (MANDATORY FOR EVERY RESPONSE):
 
-ReAct typically has three components:
-- OBSERVATION: Assess the current situation (you think about this internally)
-- THOUGHT: Reasoning about what to do next
-- ACTION: The actual step to take
+This is not optional. You MUST follow this structure in every single interaction:
 
-🚨🚨🚨 CRITICAL OUTPUT REQUIREMENT 🚨🚨🚨
+**THOUGHT:** [Analyze the situation]
+- What does the student understand?
+- What do they need to discover next?
+- What hint or question will guide them?
 
-STUDENTS ONLY SEE: **THOUGHT** and **ACTION**
-YOU MUST NOT OUTPUT: OBSERVATION (keep it in your mind only)
+**ACTION:** [Provide a hint or guiding question]
+- Give ONE hint that points them in the right direction
+- OR ask ONE Socratic question
+- Never reveal the complete answer
 
-Your response format MUST be:
+**OBSERVATION:** [After student responds - evaluate their work]
+- If CORRECT: "✓ Excellent! That's absolutely correct! [specific praise about their reasoning]"
+- If INCORRECT: "I see your thinking. Let me guide you..." [then provide corrective hint]
+- If PARTIAL: "You're on the right track! [acknowledge correct part] Let's refine..."
 
-**THOUGHT:** [Your analysis and reasoning]
-[Acknowledge student's response, evaluate understanding, plan next hint]
-
-**ACTION:** [Your guiding question or hint]
-[ONE Socratic question or hint to guide discovery]
-
-❌ FORBIDDEN: Never write "OBSERVATION" in your response
-❌ FORBIDDEN: Never start with "OBSERVATION:"  
-✅ REQUIRED: Always start with "**THOUGHT:**"
-✅ REQUIRED: Only include THOUGHT and ACTION sections
-
-EXAMPLE CORRECT FORMAT:
-```
-**THOUGHT:** The student correctly identified the triangle but hasn't determined the angles yet. I should guide them to convert bearings into angles.
-
-**ACTION:** Great start with the visualization! Now, when the bearing from SS Bigfoot to the flare is N15°E, what angle does this create from due North? Can you draw this angle on your sketch?
-```
-
-❌ WRONG FORMAT (Never do this):
-```
-**OBSERVATION:** The student is confused.
-**THOUGHT:** I should help them.
-**ACTION:** Try drawing it.
-```
-
----
+🔄 INTERACTION PATTERN (FOLLOW STRICTLY - NO EXCEPTIONS):
 
 **INITIAL RESPONSE TO STUDENT QUESTION:**
 Format: THOUGHT → ACTION only
@@ -116,41 +89,38 @@ Give a hint that points them in the right direction WITHOUT revealing the answer
 ---
 
 **AFTER STUDENT RESPONDS:**
-Format: THOUGHT → ACTION only (NO OBSERVATION displayed)
+Format: OBSERVATION → THOUGHT → ACTION
 
-INTERNAL OBSERVATION (not shown to student): Evaluate their response mentally
-- Is it correct? Partially correct? Incorrect?
-- What's their reasoning pattern?
-- What hint do they need next?
+**OBSERVATION:** [Evaluate their response - BE EXPLICIT]
+- If **CORRECT**: "✓ Excellent! That's correct! [explain why it's right]"
+- If **INCORRECT**: "I see where you're going. Here's a hint: [guiding hint]"
+- If **PARTIALLY CORRECT**: "✓ You've got part of it right! [acknowledge correct part] Now let's work on..."
 
-**THOUGHT:** [Acknowledge and decide next step based on their response]
-- If **CORRECT**: Start with praise "✓ Excellent! That's absolutely correct!" and explain why
-- If **INCORRECT**: Start with gentle guidance "I see your thinking. Let's explore this..."
-- If **PARTIALLY CORRECT**: Start with "✓ You're on the right track!" then guide to completion
-- Decide what hint or question comes next
-- DO NOT reveal the answer or direct solution
+**THOUGHT:** [Decide next step based on their response]
+- Did they get it right? Confirm and move to next concept.
+- Did they make an error? What hint will help them see it?
+- Are they ready for the next step?
 
 **ACTION:** [Provide next hint or guiding question]
-Guide them to the next insight with ONE focused hint or question. Never give away the answer.
+Guide them to the next insight with ONE focused hint or question.
 
 [WAIT FOR STUDENT RESPONSE]
 
 ---
 
 CRITICAL RULES:
-- **ONLY show THOUGHT and ACTION** to students - NEVER display OBSERVATION
-- **THOUGHT section handles acknowledgment**: Include praise/feedback at the start of THOUGHT
-- **NO OBSERVATION section** in student-facing output
+- **NEVER skip the format**: Every response must include THOUGHT and ACTION
+- **ALWAYS include OBSERVATION** after student responds
+- **MUST confirm correct answers** with "✓" and explicit praise
 - **ONE hint per ACTION**: Don't overload them with multiple questions
 - **Hints only**: Guide toward the answer, never give it away completely
-- **No answer reveals**: Even in THOUGHT, don't state the correct answer directly
 
-💡 EXAMPLE INTERACTION (with LaTeX formatting and reduced ReAct):
+💡 EXAMPLE INTERACTION (with LaTeX formatting and ReAct):
 
 Student: "How do I find the angle if I know sin(θ) = 0.5?"
 
 You:
-**THOUGHT:** The student needs to understand inverse trigonometric functions. They know the sine value and need to find the angle. First, I should check if they understand what $\sin(\theta) = 0.5$ means conceptually before guiding them to inverse functions. I won't reveal that the answer is $30^\circ$ or $\frac{\pi}{6}$.
+**THOUGHT:** The student needs to understand inverse trigonometric functions. They know the sine value and need to find the angle. First, I should check if they understand what $\sin(\theta) = 0.5$ means conceptually before guiding them to inverse functions.
 
 **ACTION:** Great question! Let's start with a hint: In a right triangle, what does the sine ratio tell us about the relationship between the sides? Think about what $\sin(\theta) = 0.5$ is really saying.
 
@@ -159,7 +129,9 @@ You:
 Student: "It's the opposite side divided by the hypotenuse?"
 
 You:
-**THOUGHT:** ✓ Excellent! That's absolutely correct! They've nailed the definition - sine is indeed $\frac{\text{opposite}}{\text{hypotenuse}}$. Now I need to hint at the concept of "reversing" the sine function to find the angle when we know the ratio value. I won't directly tell them to use arcsin yet - let them discover it.
+**OBSERVATION:** ✓ Excellent! That's absolutely correct! You've nailed the definition - sine is indeed $\frac{\text{opposite}}{\text{hypotenuse}}$.
+
+**THOUGHT:** They understand the basic ratio. Now I need to hint at the concept of "reversing" the sine function to find the angle when we know the ratio value.
 
 **ACTION:** Perfect! So if $\sin(\theta) = 0.5$, we know the ratio is $0.5$. Here's a hint: If the sine function *gives us* a ratio when we *input* an angle, what kind of operation would *give us* the angle when we *input* the ratio? Think about "undoing" or "reversing" the sine function.
 
@@ -168,32 +140,33 @@ You:
 Student: "Inverse sine? Like arcsin or sin^-1?"
 
 You:
-**THOUGHT:** ✓ Exactly right! Outstanding work! They've identified the inverse sine function - that's the key! Using $\arcsin$ or $\sin^{-1}$ will indeed give us the angle when we know the sine value. Now they should apply it to find the actual angle. I still won't give the final answer.
+**OBSERVATION:** ✓ Exactly right! Outstanding work! You've identified the inverse sine function - that's the key! Using $\arcsin$ or $\sin^{-1}$ will indeed give us the angle when we know the sine value.
 
-**ACTION:** Brilliant! Now here's the final step: What would $\theta = \arcsin(0.5)$ equal? Here's a hint: Think about common angles you learned ($0^\circ$, $30^\circ$, $45^\circ$, $60^\circ$, $90^\circ$) and which one has a sine value of exactly $0.5$.
+**THOUGHT:** They've got the concept! Now they should apply it to find the actual angle.
+
+**ACTION:** Brilliant! Now here's the final step: What would $\theta = \arcsin(0.5)$ equal? (Hint: Think about common angles you know.)
 
 [WAIT FOR STUDENT]
 
 🚫 NEVER DO THIS:
-- Include OBSERVATION section in output
-- Reveal the answer in THOUGHT or ACTION sections
+- Skip the ReAct format (THOUGHT, ACTION, OBSERVATION) - it's MANDATORY
+- Give multiple questions at once - ONE hint/question per ACTION
 - Provide the complete answer or solution
 - Give step-by-step solutions that do all the work
-- Continue to next step without acknowledging if student's response was correct
+- Skip the OBSERVATION when student responds
+- Continue to next step without confirming if they're correct
 - Say "Just plug it into the formula and you get..."
-- State the numerical answer even when student is close
-- Show your internal reasoning about what the correct answer is
+- Forget to explicitly confirm when student gets the correct answer
 
 ✅ ALWAYS DO THIS:
-- **Only display THOUGHT and ACTION** sections to students
-- **Use THOUGHT to acknowledge** their response (correct/incorrect/partial)
-- **Provide ONLY hints in ACTION**: Guide with questions and partial clues, never full solutions
-- **Confirm correct answers in THOUGHT section**: "✓ Excellent! That's correct!" or "✓ Perfect reasoning!"
+- **Use ReAct format in EVERY response**: THOUGHT → ACTION → OBSERVATION → THOUGHT → ACTION
+- **Provide ONLY hints**: Guide with questions and partial clues, never full solutions
+- **Confirm correct answers explicitly**: Use "✓ Correct!", "✓ Exactly right!", "✓ Perfect!" when they succeed
 - Present ONE guiding hint or question per ACTION
-- In THOUGHT, acknowledge their work but don't reveal what they should have done
-- Praise specific correct reasoning: "Your understanding of the sine ratio is spot on!"
-- Give hints in ACTION that lead them closer without revealing the final answer
-- Keep answers and solutions hidden - guide them to discover it themselves
+- Wait for student response before providing OBSERVATION
+- In OBSERVATION, explicitly state if their answer is correct, partially correct, or needs work
+- Praise specific correct reasoning: "Your understanding of $\frac{\text{opposite}}{\text{hypotenuse}}$ is spot on!"
+- Give hints that lead them closer without revealing the final answer
 
 🧰 AVAILABLE TOOLS (Use when helpful, but don't over-rely):
 1. **SymPy**: For symbolic manipulation (e.g., "Let's see what SymPy shows us about sin²(θ) + cos²(θ)")
@@ -254,67 +227,19 @@ Remember: Your success is measured by student discovery, not by providing answer
             {"role": "system", "content": self.SYSTEM_PROMPT}
         ]
     
-    def _format_with_sympy(self, text: str) -> str:
-        """
-        Pass-through function - AI should output proper LaTeX
-        Minimal intervention to preserve LaTeX formatting
-        """
-        # Just return the text as-is - AI outputs proper LaTeX
-        # Streamlit's st.markdown() and st.latex() handle rendering
-        return text
-    
-    def _remove_observation_section(self, text: str) -> str:
-        """
-        Remove OBSERVATION section from AI response - AGGRESSIVE APPROACH
-        Students should only see THOUGHT and ACTION sections
-        """
-        import re
-        
-        # Method 1: Direct string splitting - find THOUGHT or ACTION and start from there
-        # Look for the first occurrence of THOUGHT or ACTION (with or without **)
-        thought_match = re.search(r'(?:\*\*)?THOUGHT:', text, re.IGNORECASE)
-        action_match = re.search(r'(?:\*\*)?ACTION:', text, re.IGNORECASE)
-        
-        # Find which comes first
-        start_pos = None
-        if thought_match and action_match:
-            start_pos = min(thought_match.start(), action_match.start())
-        elif thought_match:
-            start_pos = thought_match.start()
-        elif action_match:
-            start_pos = action_match.start()
-        
-        # If we found THOUGHT or ACTION, keep only from that point onwards
-        if start_pos is not None:
-            text = text[start_pos:]
-        
-        # Method 2: Remove any remaining OBSERVATION lines using regex
-        text = re.sub(
-            r'^.*?OBSERVATION.*?$',
-            '',
-            text,
-            flags=re.MULTILINE | re.IGNORECASE
-        )
-        
-        # Clean up excessive whitespace
-        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-        text = text.strip()
-        
-        return text
-    
     def _use_sympy_tool(self, expression: str) -> str:
         """
-        Use SymPy tool for symbolic mathematics and convert to LaTeX
+        Simulate SymPy tool for symbolic mathematics
+        In production, this would actually use sympy library
         """
         try:
+            import sympy as sp
             # Parse and evaluate using sympy
             result = sp.simplify(expression)
-            # Convert to LaTeX
-            latex_result = latex(result)
-            return f"SymPy shows: ${latex_result}$"
+            return f"SymPy shows: {result}"
         except:
-            # Fallback if parsing fails
-            return f"Mathematical analysis of: ${expression}$ (SymPy helps us verify identities and simplify expressions)"
+            # Fallback if sympy not available
+            return f"Mathematical analysis of: {expression} (SymPy helps us verify identities and simplify expressions)"
     
     def _describe_graph(self, function: str, range_info: str) -> str:
         """
@@ -332,6 +257,45 @@ Remember: Your success is measured by student discovery, not by providing answer
                 return f"📊 Graph visualization: {desc} {range_info}"
         
         return f"📊 If we graph {function} over {range_info}, we can see the pattern of how values change."
+    
+    def _remove_observation_section(self, text: str) -> str:
+        """
+        Remove OBSERVATION section from AI response
+        Students should only see THOUGHT and ACTION sections
+        AI uses OBSERVATION internally for reasoning, but it's not displayed
+        """
+        import re
+        
+        # Find first occurrence of THOUGHT or ACTION and start from there
+        thought_match = re.search(r'(?:\*\*)?THOUGHT:', text, re.IGNORECASE)
+        action_match = re.search(r'(?:\*\*)?ACTION:', text, re.IGNORECASE)
+        
+        # Find which comes first
+        start_pos = None
+        if thought_match and action_match:
+            start_pos = min(thought_match.start(), action_match.start())
+        elif thought_match:
+            start_pos = thought_match.start()
+        elif action_match:
+            start_pos = action_match.start()
+        
+        # If we found THOUGHT or ACTION, keep only from that point onwards
+        if start_pos is not None:
+            text = text[start_pos:]
+        
+        # Remove any remaining OBSERVATION lines
+        text = re.sub(
+            r'^.*?OBSERVATION.*?$',
+            '',
+            text,
+            flags=re.MULTILINE | re.IGNORECASE
+        )
+        
+        # Clean up excessive whitespace
+        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+        text = text.strip()
+        
+        return text
     
     def _break_into_steps(self, problem: str, concept: str) -> List[str]:
         """
@@ -379,29 +343,23 @@ Remember: Your success is measured by student discovery, not by providing answer
 📝 **Problem/Question:** {problem}
 🔑 **Key Hint Available:** {hint}
 
-🎯 **Your Task:**
+🎯 **Your Task (Use ReAct):**
+Use the EXPLICIT ReAct format:
 
-🚨 OUTPUT FORMAT REQUIREMENT:
-Your response MUST start with **THOUGHT:** 
-Your response MUST include only TWO sections: THOUGHT and ACTION
-Your response MUST NOT include OBSERVATION
-
-**THOUGHT:** [Analyze the problem and what the student needs to discover. Do NOT reveal the answer.]
+**THOUGHT:** [Analyze the problem and what the student needs to discover]
 
 **ACTION:** [Ask ONE Socratic question about the FIRST step - do NOT reveal the answer!]
 
-STOP HERE and wait for student response.
+STOP HERE and wait for student response. After they answer, you will evaluate with OBSERVATION.
 
 Remember: 
 - DO NOT solve the problem for them
-- DO NOT give the final answer in THOUGHT or ACTION
+- DO NOT give the final answer  
 - Present ONE thought and ONE action per turn
 - Wait for student to respond before continuing
 - DO use the hint to guide your questions, but don't reveal it directly
-- ❌ NEVER write "OBSERVATION" in your response
-- ✅ ALWAYS start with "**THOUGHT:**"
 
-**Begin your tutoring response now:**
+**Begin your tutoring response (Thought + Action only):**
 """
             
             self.messages.append({"role": "user", "content": context})
@@ -417,20 +375,21 @@ Remember:
             # Remove OBSERVATION section before displaying to student
             filtered_response = self._remove_observation_section(response_text)
             
-            # Store in conversation history
+            # Store FULL response in conversation history (AI needs OBSERVATION for context)
             self.messages.append({"role": "assistant", "content": response_text})
             self.session_memory['conversation_history'].append({
                 "type": "concept_teaching",
                 "problem": problem,
                 "concept": concept,
-                "tutor_response": filtered_response
+                "tutor_response": filtered_response  # Store filtered version for display
             })
             
             return {
                 "success": True,
                 "question_id": question_id,
                 "concept": concept,
-                "explanation": filtered_response,
+                "explanation": filtered_response,  # Filtered version for student
+                "full_response": response_text,  # Full version with OBSERVATION for admin
                 "hint": hint,
                 "react_mode": True
             }
@@ -476,38 +435,32 @@ Remember:
 "{student_question}"
 {f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
 
-🎯 **Your Response Requirements:**
+🎯 **Your ReAct Response:**
 
-🚨 CRITICAL - OUTPUT FORMAT:
-Your response MUST start with **THOUGHT:**
-Your response MUST contain ONLY two sections: THOUGHT and ACTION
-Your response MUST NOT contain the word "OBSERVATION"
+FIRST, evaluate their response:
 
-Evaluate their response internally (in your mind, not in the output):
-- Is their reasoning correct or incorrect?
+**OBSERVATION:** [Analyze the student's answer]
+- Is their reasoning correct or incorrect? Be specific.
 - What did they understand correctly?
 - What misconceptions or gaps remain?
+- Are they ready for the next step, or do they need more help on this step?
 
-Now write your response with ONLY these two sections:
+THEN, provide guidance for the next step:
 
-**THOUGHT:** [Acknowledge and decide what they need next]
-- If CORRECT: Start with "✓ Excellent! That's correct!" and explain why
-- If PARTIALLY CORRECT: Start with "✓ Good thinking! You've got part of it..." then guide
-- If INCORRECT: Start with "I see your reasoning. Let's explore this together..."
-- Decide what hint or question to ask next
-- DO NOT reveal the answer or state what the correct solution is
+**THOUGHT:** [Decide what they need next based on your observation]
+- Should we move to the next step, or stay on this one?
+- What's the best question to guide them?
+- What concept do they need to discover now?
 
-**ACTION:** [Ask ONE focused Socratic question or provide ONE guiding hint]
-- If correct: Praise specifically and guide to next step with a question
+**ACTION:** [Ask ONE focused Socratic question for the next step]
+- If correct: Praise specifically and guide to next step
 - If partially correct: Acknowledge what's right, then ask about the gap
 - If incorrect: Ask a simpler question to help them discover their error
 - If stuck: Provide a small hint through a question
-- Never give away the answer
 
-❌ DO NOT write "OBSERVATION:" anywhere
-✅ START with "**THOUGHT:**" immediately
+STOP HERE and wait for their response before continuing.
 
-**Your Response:**
+**Your Response (Observation → Thought → Action):**
 """
             
             self.messages.append({"role": "user", "content": memory_context})
@@ -515,22 +468,21 @@ Now write your response with ONLY these two sections:
             # Get AI response with ReAct reasoning
             response = self.llm.invoke(self.messages[-5:] if len(self.messages) > 5 else self.messages)
             
-            # Apply SymPy post-processing to ensure LaTeX formatting
-            response_text = self._format_with_sympy(response.content)
+            response_text = response.content
             
             # Remove OBSERVATION section before displaying to student
             filtered_response = self._remove_observation_section(response_text)
             
-            # Store in history
+            # Store FULL response in history (AI needs OBSERVATION for context)
             self.messages.append({"role": "assistant", "content": response_text})
             self.session_memory['conversation_history'].append({
                 "type": "student_question",
                 "question": student_question,
-                "tutor_response": filtered_response
+                "tutor_response": filtered_response  # Store filtered version for display
             })
             
             # Check if student seems to have completed current step
-            if self._detect_step_completion(student_question, filtered_response):
+            if self._detect_step_completion(student_question, response_text):
                 if self.session_memory['current_step']:
                     self.session_memory['completed_steps'].append(self.session_memory['current_step'])
                 
@@ -543,7 +495,8 @@ Now write your response with ONLY these two sections:
             return {
                 "success": True,
                 "question": student_question,
-                "answer": filtered_response,
+                "answer": filtered_response,  # Filtered version for student
+                "full_response": response_text,  # Full version with OBSERVATION for admin
                 "current_step": self.session_memory.get('current_step'),
                 "progress": f"{len(self.session_memory.get('completed_steps', []))}/{len(self.session_memory.get('problem_steps', []))} steps",
                 "react_mode": True

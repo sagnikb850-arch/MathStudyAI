@@ -57,8 +57,6 @@ data/performance_ratings.csv
 data/comparison_results.csv
 data/student_progress.json
 data/learning_history.json
-data/chat_history.json
-data/student_tracking.json
 
 # Streamlit secrets
 .streamlit/secrets.toml
@@ -82,3 +80,4 @@ temp/
 
 # Git
 .git/
+.gitignore

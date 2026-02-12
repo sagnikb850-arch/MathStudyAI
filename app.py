@@ -30,23 +30,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Add MathJax support for LaTeX rendering
-mathjax_script = """
-<script>
-MathJax = {
-  tex: {
-    inlineMath: [['$', '$']],
-    displayMath: [['$$', '$$']]
-  },
-  svg: {
-    fontCache: 'global'
-  }
-};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-"""
-st.markdown(mathjax_script, unsafe_allow_html=True)
-
 # Initialize session state
 if 'student_id' not in st.session_state:
     st.session_state.student_id = None
@@ -75,44 +58,6 @@ final_questions = questions_data['final_assessment']
 
 # Initialize storage
 storage = DataStorage('data')
-
-# Helper function to render LaTeX expressions properly
-def render_latex_content(text):
-    """
-    Render LaTeX as actual math symbols using MathJax
-    Handles multiple LaTeX formats: $...$, $$...$$, \(...\), \[...\], and ( ... )
-    """
-    if not text or not text.strip():
-        return
-    
-    import re
-    
-    # Convert common markdown LaTeX formats to MathJax format
-    # Convert \( ... \) to $ ... $ (inline math)
-    text = re.sub(r'\\\((.*?)\\\)', r'$\1$', text)
-    
-    # Convert \[ ... \] to $$ ... $$ (display math)
-    text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text, flags=re.DOTALL)
-    
-    # Convert ( ... ) with LaTeX commands inside to $ ... $ (common AI output format)
-    # Only convert if there are LaTeX commands inside the parentheses
-    text = re.sub(r'\(\s*\\([a-zA-Z]+[^)]*)\)', r'$\\\1$', text)
-    
-    # Convert [ ... ] with LaTeX commands to $$ ... $$
-    text = re.sub(r'\[\s*\\([a-zA-Z]+[^\]]*)\]', r'$$\\\1$$', text)
-    
-    # Render content with MathJax processing
-    content_html = f"""
-    <div class="math-content">
-        {text}
-    </div>
-    <script>
-        if (typeof MathJax !== 'undefined') {{
-            MathJax.typesetPromise();
-        }}
-    </script>
-    """
-    st.markdown(content_html, unsafe_allow_html=True)
 
 # Initialize agents (lazy load)
 @st.cache_resource
@@ -179,15 +124,12 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "📈 Progress Report", 
-        "🏆 Comparison", 
-        "📝 Manage Questions", 
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 Progress Report",
+        "🏆 Comparison",
+        "📝 Manage Questions",
         "💡 Practice Questions",
-        "💬 Chat History",
-        "👥 Student Management",
-        "📋 Assessment Responses",
-        "🗑️ Reset Data"
+        "💬 Full Chat History (with OBSERVATION)"
     ])
     
     with tab1:
@@ -203,16 +145,7 @@ def show_admin_dashboard():
         show_admin_practice_questions()
     
     with tab5:
-        show_admin_chat_history()
-    
-    with tab6:
-        show_admin_student_management()
-    
-    with tab7:
-        show_admin_assessment_responses()
-    
-    with tab8:
-        show_admin_reset_data()
+        show_admin_full_chat_history()
 
 
 def show_admin_progress():
@@ -294,7 +227,7 @@ def show_admin_comparison():
             if comparison:
                 # Display winner
                 st.success(f"🏆 Winner: **{comparison['winner']}**")
-                render_latex_content(comparison['analysis'])
+                st.markdown(comparison['analysis'])
                 
                 st.divider()
                 
@@ -374,19 +307,16 @@ def show_admin_manage_questions():
     
     question_type = st.selectbox(
         "Select Question Set",
-        ["Pre-Assessment Group 1", "Pre-Assessment Group 2", "Learning Questions", "Final Assessment"]
+        ["Pre-Assessment", "Learning Questions", "Final Assessment"]
     )
     
     # Load current questions
     with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
         questions_data = json.load(f)
     
-    if question_type == "Pre-Assessment Group 1":
-        questions = questions_data['pre_assessment_group1']
-        key = 'pre_assessment_group1'
-    elif question_type == "Pre-Assessment Group 2":
-        questions = questions_data['pre_assessment_group2']
-        key = 'pre_assessment_group2'
+    if question_type == "Pre-Assessment":
+        questions = questions_data['pre_assessment']
+        key = 'pre_assessment'
     elif question_type == "Learning Questions":
         questions = questions_data['learning_questions']
         key = 'learning_questions'
@@ -519,323 +449,60 @@ def show_admin_practice_questions():
         st.info("No practice questions file found.")
 
 
-def show_admin_chat_history():
-    """View all student chat interactions"""
-    st.header("💬 Student Chat History")
-    st.write("Review how students interact with the tutoring system")
+def show_admin_full_chat_history():
+    """Admin view of full chat responses including OBSERVATION sections"""
+    st.header("💬 Full Chat History (with OBSERVATION)")
+    st.info("This view shows the complete AI responses including OBSERVATION sections that students don't see.")
     
-    # Get all chat histories
-    all_chats = storage.get_all_chat_histories()
-    
-    if not all_chats:
-        st.info("No chat history available yet.")
-        return
-    
-    # Student selector
-    student_ids = list(all_chats.keys())
-    selected_student = st.selectbox("Select Student", student_ids)
-    
-    if selected_student:
-        student_chats = all_chats[selected_student]
+    # Load learning progress data
+    if os.path.exists('data/learning_progress.json'):
+        with open('data/learning_progress.json', 'r', encoding='utf-8') as f:
+            progress_data = json.load(f)
         
-        # Get student tracking info
-        tracking = storage.get_student_tracking(selected_student)
-        
-        # Display student info
-        st.subheader(f"Student: {selected_student}")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.info(f"**Group:** {tracking.get('group', 'N/A')}")
-        with col2:
-            st.info(f"**Days Interacted:** {tracking.get('days_interacted', 0)}")
-        with col3:
-            st.info(f"**Total Messages:** {len(student_chats)}")
-        
-        st.divider()
-        
-        # Display chat messages
-        st.subheader("Chat Messages")
-        for idx, chat in enumerate(student_chats):
-            timestamp = chat.get('timestamp', 'N/A')
-            role = chat.get('role', 'unknown')
-            message = chat.get('message', '')
+        if progress_data:
+            # Get list of students
+            students = list(progress_data.keys())
+            selected_student = st.selectbox("Select Student ID", students)
             
-            if role == 'user':
-                with st.chat_message("user"):
-                    st.write(f"**[{timestamp}]**")
-                    st.write(message)
-            else:
-                with st.chat_message("assistant"):
-                    st.write(f"**[{timestamp}]**")
-                    render_latex_content(message)
-        
-        # Download option
-        st.divider()
-        import json
-        json_data = json.dumps(student_chats, indent=2)
-        st.download_button(
-            "📥 Download Chat History (JSON)",
-            json_data,
-            file_name=f"chat_history_{selected_student}.json",
-            mime="application/json"
-        )
-
-
-def show_admin_student_management():
-    """Manage student access and track progress"""
-    st.header("👥 Student Management")
-    st.write("Track student progress and manage final test access")
-    
-    # Get all student tracking data
-    all_tracking = storage.get_all_student_tracking()
-    
-    if not all_tracking:
-        st.info("No student data available yet.")
-        return
-    
-    # Create DataFrame for better display
-    tracking_list = []
-    for student_id, data in all_tracking.items():
-        tracking_list.append({
-            'Student ID': student_id,
-            'Group': f"Group {data.get('group', 'N/A')}",
-            'Pre-Test Done': '✅' if data.get('pre_test_completed') else '❌',
-            'Days Interacted': data.get('days_interacted', 0),
-            'Final Test Enabled': '✅' if data.get('final_test_enabled') else '🔒',
-            'Final Test Done': '✅' if data.get('final_test_completed') else '❌',
-            'Admin Override': '⚠️' if data.get('admin_override') else '-'
-        })
-    
-    df = pd.DataFrame(tracking_list)
-    st.dataframe(df, use_container_width=True)
-    
-    st.divider()
-    st.subheader("🔧 Manage Student Access")
-    
-    # Student selector
-    student_ids = list(all_tracking.keys())
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        selected_student = st.selectbox("Select Student to Manage", student_ids)
-    
-    if selected_student:
-        student_data = all_tracking[selected_student]
-        
-        # Display current status
-        st.write("**Current Status:**")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Days Interacted", student_data.get('days_interacted', 0))
-        with col2:
-            status = "Enabled" if student_data.get('final_test_enabled') else "Locked"
-            st.metric("Final Test", status)
-        with col3:
-            override = "Yes" if student_data.get('admin_override') else "No"
-            st.metric("Admin Override", override)
-        with col4:
-            completed = "Yes" if student_data.get('final_test_completed') else "No"
-            st.metric("Test Completed", completed)
-        
-        st.divider()
-        
-        # Admin actions
-        st.write("**Admin Actions:**")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🔓 Enable Final Test", use_container_width=True):
-                if storage.admin_enable_final_test(selected_student, True):
-                    st.success(f"✅ Final test enabled for {selected_student}")
-                    st.rerun()
+            if selected_student:
+                st.subheader(f"Chat History for: {selected_student}")
+                
+                student_progress = progress_data[selected_student]
+                
+                if student_progress:
+                    # Display each interaction
+                    for idx, interaction in enumerate(student_progress):
+                        with st.expander(f"Interaction {idx + 1} - {interaction.get('concept', 'N/A')} - {interaction.get('timestamp', interaction.get('accessed_at', 'N/A'))}"):
+                            # Show concept and question ID
+                            st.markdown(f"**Concept:** {interaction.get('concept', 'N/A')}")
+                            st.markdown(f"**Question ID:** {interaction.get('question_id', 'N/A')}")
+                            
+                            # Show student response if available
+                            if 'student_response' in interaction:
+                                st.markdown("### 👤 Student Response:")
+                                st.info(interaction['student_response'])
+                            
+                            # Show filtered response (what student saw)
+                            if 'tutor_response_filtered' in interaction:
+                                st.markdown("### 🎓 Student View (THOUGHT + ACTION only):")
+                                st.success(interaction['tutor_response_filtered'])
+                            
+                            # Show full response with OBSERVATION (admin only)
+                            if 'tutor_response_full' in interaction:
+                                st.markdown("### 🔍 Admin View (Full Response with OBSERVATION):")
+                                st.warning(interaction['tutor_response_full'])
+                                
+                                # Highlight if OBSERVATION is present
+                                if 'OBSERVATION' in interaction['tutor_response_full'].upper():
+                                    st.caption("✅ Contains OBSERVATION section (hidden from student)")
+                                else:
+                                    st.caption("ℹ️ No OBSERVATION section in this response")
                 else:
-                    st.error("Failed to enable final test")
-        
-        with col2:
-            if st.button("🔒 Disable Final Test", use_container_width=True):
-                if storage.admin_enable_final_test(selected_student, False):
-                    st.success(f"✅ Final test disabled for {selected_student}")
-                    st.rerun()
-                else:
-                    st.error("Failed to disable final test")
-        
-        # View interaction dates
-        st.divider()
-        st.write("**Interaction History:**")
-        interaction_dates = student_data.get('interaction_dates', [])
-        if interaction_dates:
-            for date in interaction_dates:
-                st.write(f"- 📅 {date}")
+                    st.info("No interactions recorded for this student yet.")
         else:
-            st.info("No interactions recorded yet")
-
-
-def show_admin_assessment_responses():
-    """View detailed student assessment responses"""
-    st.header("📋 Student Assessment Responses")
-    st.write("View detailed answers to pre-test and final test questions")
-    
-    # Check if assessments file exists
-    if not os.path.exists('data/assessments.csv'):
-        st.info("No assessment responses available yet.")
-        return
-    
-    # Load assessments
-    df = pd.read_csv('data/assessments.csv')
-    
-    if len(df) == 0:
-        st.info("No assessment responses available yet.")
-        return
-    
-    # Filter options
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        filter_group = st.selectbox("Filter by Group", ["All", "Group 1", "Group 2"], key="resp_group")
-    with col2:
-        filter_type = st.selectbox("Assessment Type", ["All", "Pre-Assessment", "Final Assessment"], key="resp_type")
-    with col3:
-        student_ids = ["All"] + sorted(df['student_id'].unique().tolist())
-        selected_student = st.selectbox("Select Student", student_ids, key="resp_student")
-    
-    # Apply filters
-    filtered_df = df.copy()
-    if filter_group != "All":
-        filtered_df = filtered_df[filtered_df['group'] == ('1' if filter_group == "Group 1" else '2')]
-    if filter_type != "All":
-        filtered_df = filtered_df[filtered_df['assessment_type'] == ('pre' if filter_type == "Pre-Assessment" else 'final')]
-    if selected_student != "All":
-        filtered_df = filtered_df[filtered_df['student_id'] == selected_student]
-    
-    st.divider()
-    
-    if len(filtered_df) == 0:
-        st.warning("No responses match the selected filters.")
-        return
-    
-    # Display summary
-    st.subheader("📊 Summary")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Responses", len(filtered_df))
-    with col2:
-        avg_score = filtered_df['score'].mean() if 'score' in filtered_df.columns else 0
-        st.metric("Average Score", f"{avg_score:.1f}%")
-    with col3:
-        unique_students = filtered_df['student_id'].nunique()
-        st.metric("Unique Students", unique_students)
-    
-    st.divider()
-    
-    # Display detailed responses
-    st.subheader("📝 Detailed Responses")
-    
-    for idx, row in filtered_df.iterrows():
-        student_id = row['student_id']
-        group = "Group 1" if row['group'] == '1' else "Group 2"
-        assessment = "Pre-Assessment" if row['assessment_type'] == 'pre' else "Final Assessment"
-        timestamp = row['timestamp'].split('T')[0] if 'T' in str(row['timestamp']) else row['timestamp']
-        score = row.get('score', 0)
-        
-        with st.expander(f"📄 {student_id} - {group} - {assessment} - {timestamp} (Score: {score}%)"):
-            st.write(f"**Student ID:** {student_id}")
-            st.write(f"**Group:** {group}")
-            st.write(f"**Assessment Type:** {assessment}")
-            st.write(f"**Date:** {timestamp}")
-            st.write(f"**Score:** {score}%")
-            
-            st.divider()
-            st.subheader("Responses:")
-            
-            # Display each question's answer
-            for i in range(1, 6):
-                col_name = f'q{i}_answer'
-                if col_name in row and pd.notna(row[col_name]) and row[col_name]:
-                    st.write(f"**Question {i}:**")
-                    st.text_area(
-                        f"Answer {i}",
-                        value=row[col_name],
-                        height=150,
-                        disabled=True,
-                        key=f"resp_{idx}_q{i}",
-                        label_visibility="collapsed"
-                    )
-                    st.write("")
-    
-    # Download option
-    st.divider()
-    csv = filtered_df.to_csv(index=False)
-    st.download_button(
-        label="📥 Download Filtered Responses as CSV",
-        data=csv,
-        file_name=f"assessment_responses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        mime="text/csv"
-    )
-
-
-def show_admin_reset_data():
-    """Admin page to reset all data"""
-    st.header("🗑️ Reset All Data")
-    st.warning("⚠️ **DANGER ZONE** ⚠️")
-    st.write("""
-    This action will **permanently delete**:
-    - All student chat history
-    - All student tracking data
-    - All performance ratings and assessment results
-    
-    **This cannot be undone!**
-    """)
-    
-    st.divider()
-    
-    # Get current data count
-    all_tracking = storage.get_all_student_tracking()
-    student_count = len(all_tracking)
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📊 Total Students", student_count)
-    with col2:
-        chat_count = 0
-        all_chats = storage.get_all_chat_histories()
-        for student_chats in all_chats.values():
-            chat_count += len(student_chats)
-        st.metric("💬 Total Messages", chat_count)
-    with col3:
-        if os.path.exists('data/performance_ratings.csv'):
-            import pandas as pd
-            perf_df = pd.read_csv('data/performance_ratings.csv')
-            st.metric("📝 Assessment Records", len(perf_df))
-        else:
-            st.metric("📝 Assessment Records", 0)
-    
-    st.divider()
-    
-    # Confirmation step
-    st.subheader("⚠️ Confirmation Required")
-    st.write("To proceed with data reset, please type: **RESET ALL DATA**")
-    
-    confirmation = st.text_input("Type confirmation text:", key="reset_confirmation")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🗑️ RESET ALL DATA", type="primary", use_container_width=True, disabled=(confirmation != "RESET ALL DATA")):
-            if confirmation == "RESET ALL DATA":
-                with st.spinner("Deleting all data..."):
-                    if storage.reset_all_data():
-                        st.success("✅ All data has been successfully deleted!")
-                        st.balloons()
-                        st.info("The system is now clean and ready for new students.")
-                        # Clear the confirmation field by rerunning
-                        import time
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.error("❌ Error occurred while resetting data. Please check logs.")
-    
-    with col2:
-        if st.button("❌ Cancel", use_container_width=True):
-            st.info("Reset operation cancelled.")
+            st.info("No student chat history available yet.")
+    else:
+        st.info("No learning progress data found. Students need to start learning first.")
 
 
 # ============================================================================
@@ -908,7 +575,7 @@ def show_home():
 # ============================================================================
 def show_registration():
     """Student registration page"""
-    st.title("📋 Student Registration / Login")
+    st.title("📋 Student Registration")
     st.write(f"**Group**: {st.session_state.group}")
     
     col1, col2 = st.columns([2, 1])
@@ -921,69 +588,15 @@ def show_registration():
         )
     
     with col2:
-        if st.button("Continue", use_container_width=True):
+        if st.button("Register & Continue", use_container_width=True):
             if student_id.strip():
                 st.session_state.student_id = student_id
-                
-                # Check if student exists and has completed pre-test
-                tracking = storage.get_student_tracking(student_id)
-                
-                if tracking:
-                    # Returning student - restore their group from tracking data
-                    saved_group = tracking.get('group')
-                    if saved_group:
-                        st.session_state.group = saved_group
-                    
-                    if tracking.get('pre_test_completed', False):
-                        # Skip pre-test, go directly to learning
-                        st.success("✅ Welcome back! Continuing to tutoring session...")
-                        st.session_state.pre_assessment_done = True
-                        
-                        # Check if final test is enabled
-                        if tracking.get('final_test_enabled', False):
-                            st.session_state.learning_done = True
-                            st.session_state.current_page = 'final_assessment'
-                        else:
-                            # Route to learning page (show_learning will handle group routing)
-                            st.session_state.current_page = 'learning'
-                        
-                        # Record daily interaction
-                        storage.record_daily_interaction(student_id)
-                        st.rerun()
-                    else:
-                        # Returning student with incomplete pre-test
-                        st.session_state.current_page = 'pre_assessment'
-                        st.rerun()
-                else:
-                    # Brand new student
-                    storage.init_student_tracking(student_id, st.session_state.group)
-                    st.session_state.current_page = 'pre_assessment'
-                    st.rerun()
+                st.session_state.current_page = 'pre_assessment'
+                st.rerun()
             else:
                 st.error("Please enter a valid Student ID")
     
     st.info("Your Student ID will be used to track your progress throughout the study.")
-    
-    # Show status if returning student
-    if student_id and student_id.strip():
-        tracking = storage.get_student_tracking(student_id.strip())
-        if tracking:
-            st.divider()
-            st.write("**Your Progress:**")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if tracking.get('pre_test_completed'):
-                    st.success("✅ Pre-test completed")
-                else:
-                    st.info("⏳ Pre-test pending")
-            with col2:
-                days = tracking.get('days_interacted', 0)
-                st.info(f"📅 {days}/3 days interacted")
-            with col3:
-                if tracking.get('final_test_enabled'):
-                    st.success("✅ Final test available")
-                else:
-                    st.warning("🔒 Final test locked")
 
 
 # ============================================================================
@@ -1006,7 +619,7 @@ def show_pre_assessment():
         
         for i, question in enumerate(pre_questions):
             st.subheader(f"Question {i+1}")
-            render_latex_content(question['question'])
+            st.markdown(question['question'])
             
             # Both groups now use text input for complex problems
             answer = st.text_area(
@@ -1049,12 +662,6 @@ def show_pre_assessment():
                     'pre',
                     analysis['analysis']
                 )
-                
-                # Update student tracking - mark pre-test as completed
-                storage.update_pre_test_completion(st.session_state.student_id)
-                
-                # Record first interaction
-                storage.record_daily_interaction(st.session_state.student_id)
                 
                 # Store in session
                 st.session_state.pre_assessment_analysis = analysis['analysis']
@@ -1100,31 +707,7 @@ def show_group1_learning():
     if 'tutor' not in st.session_state:
         st.session_state.tutor = get_customized_tutor()
     
-    # Load chat history from storage for returning students
-    if 'chat_history_loaded' not in st.session_state:
-        stored_chats = storage.get_chat_history(st.session_state.student_id)
-        if stored_chats:
-            st.session_state.stored_chat_history = stored_chats
-        else:
-            st.session_state.stored_chat_history = []
-        st.session_state.chat_history_loaded = True
-    
-    # Display previous chat history if exists
-    if st.session_state.get('stored_chat_history', []):
-        with st.expander("📝 Your Previous Chat History", expanded=True):
-            st.write("Here are your previous interactions with the AI tutor:")
-            for chat in st.session_state.stored_chat_history:
-                role = chat.get('role', 'user')
-                message = chat.get('message', '')
-                timestamp = chat.get('timestamp', '').split('T')[0] if 'T' in chat.get('timestamp', '') else ''
-                
-                with st.chat_message(role):
-                    if timestamp:
-                        st.caption(f"📅 {timestamp}")
-                    render_latex_content(message)
-            st.divider()
-    
-    # Initialize concept chat history for new messages
+    # Initialize concept chat history
     if 'concept_chats' not in st.session_state:
         st.session_state.concept_chats = {}
     
@@ -1151,15 +734,17 @@ def show_group1_learning():
                         if explanation['success']:
                             st.session_state.concept_chats[concept_key].append({
                                 'role': 'assistant',
-                                'content': explanation['explanation']
+                                'content': explanation['explanation']  # Filtered response for student
                             })
                             
-                            # Save learning progress
+                            # Save learning progress with FULL response for admin
                             storage.save_learning_progress(
                                 st.session_state.student_id,
                                 {
                                     'question_id': question['id'],
                                     'concept': question['concept'],
+                                    'tutor_response_filtered': explanation['explanation'],  # Student sees this
+                                    'tutor_response_full': explanation.get('full_response', explanation['explanation']),  # Admin sees this
                                     'accessed_at': datetime.now().isoformat()
                                 }
                             )
@@ -1168,7 +753,7 @@ def show_group1_learning():
             # Display chat history for this concept
             for msg in st.session_state.concept_chats[concept_key]:
                 with st.chat_message(msg['role']):
-                    render_latex_content(msg['content'])
+                    st.markdown(msg['content'])
             
             # Chat input for this concept
             if len(st.session_state.concept_chats[concept_key]) > 0:
@@ -1184,17 +769,6 @@ def show_group1_learning():
                         'content': user_response
                     })
                     
-                    # Save user message to database
-                    storage.save_chat_message(
-                        st.session_state.student_id,
-                        st.session_state.group,
-                        'user',
-                        user_response
-                    )
-                    
-                    # Record daily interaction
-                    storage.record_daily_interaction(st.session_state.student_id)
-                    
                     # Get tutor's response
                     with st.spinner("AI Tutor is analyzing your response..."):
                         response = st.session_state.tutor.answer_student_question(
@@ -1205,25 +779,18 @@ def show_group1_learning():
                         if response['success']:
                             st.session_state.concept_chats[concept_key].append({
                                 'role': 'assistant',
-                                'content': response['answer']
+                                'content': response['answer']  # Filtered response for student
                             })
                             
-                            # Save assistant message to database
-                            storage.save_chat_message(
-                                st.session_state.student_id,
-                                st.session_state.group,
-                                'assistant',
-                                response['answer']
-                            )
-                            
-                            # Save interaction
+                            # Save interaction with FULL response for admin
                             storage.save_learning_progress(
                                 st.session_state.student_id,
                                 {
                                     'question_id': question['id'],
                                     'concept': question['concept'],
                                     'student_response': user_response,
-                                    'tutor_response': response['answer'],
+                                    'tutor_response_filtered': response['answer'],  # Student sees this
+                                    'tutor_response_full': response.get('full_response', response['answer']),  # Admin sees this with OBSERVATION
                                     'timestamp': datetime.now().isoformat()
                                 }
                             )
@@ -1232,19 +799,10 @@ def show_group1_learning():
     
     st.divider()
     
-    # Check if final test is enabled
-    tracking = storage.get_student_tracking(st.session_state.student_id)
-    final_test_enabled = tracking.get('final_test_enabled', False) if tracking else False
-    days_interacted = tracking.get('days_interacted', 0) if tracking else 0
-    
-    if final_test_enabled:
-        if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
-            st.session_state.learning_done = True
-            st.session_state.current_page = 'final_assessment'
-            st.rerun()
-    else:
-        st.info(f"📅 You have interacted for {days_interacted}/3 days. Complete 3 days to unlock the final assessment!")
-        st.button("Final Assessment (Locked)", use_container_width=True, disabled=True)
+    if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
+        st.session_state.learning_done = True
+        st.session_state.current_page = 'final_assessment'
+        st.rerun()
 
 
 def show_group2_learning():
@@ -1264,25 +822,13 @@ def show_group2_learning():
     st.write("---")
     st.subheader("💬 Chat with AI Assistant")
     
-    # Load chat history from storage for returning students
-    if 'chat_history' not in st.session_state:
-        stored_chats = storage.get_chat_history(st.session_state.student_id)
-        if stored_chats:
-            # Convert stored format to session state format
-            st.session_state.chat_history = [
-                {
-                    'role': chat.get('role', 'user'),
-                    'content': chat.get('message', '')
-                }
-                for chat in stored_chats
-            ]
-        else:
-            st.session_state.chat_history = []
-    
     # Display chat history
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    
     for msg in st.session_state.chat_history:
         with st.chat_message(msg['role']):
-            render_latex_content(msg['content'])
+            st.markdown(msg['content'])
     
     # Chat input
     user_input = st.chat_input("Ask a question about trigonometry...")
@@ -1293,17 +839,6 @@ def show_group2_learning():
             'role': 'user',
             'content': user_input
         })
-        
-        # Save user message to database
-        storage.save_chat_message(
-            st.session_state.student_id,
-            st.session_state.group,
-            'user',
-            user_input
-        )
-        
-        # Record daily interaction
-        storage.record_daily_interaction(st.session_state.student_id)
         
         with st.chat_message("user"):
             st.write(user_input)
@@ -1318,14 +853,6 @@ def show_group2_learning():
                     'content': response['answer']
                 })
                 
-                # Save assistant message to database
-                storage.save_chat_message(
-                    st.session_state.student_id,
-                    st.session_state.group,
-                    'assistant',
-                    response['answer']
-                )
-                
                 # Save learning progress
                 storage.save_learning_progress(
                     st.session_state.student_id,
@@ -1336,25 +863,16 @@ def show_group2_learning():
                 )
                 
                 with st.chat_message("assistant"):
-                    render_latex_content(response['answer'])
+                    st.markdown(response['answer'])
         
         st.rerun()
     
     st.divider()
     
-    # Check if final test is enabled
-    tracking = storage.get_student_tracking(st.session_state.student_id)
-    final_test_enabled = tracking.get('final_test_enabled', False) if tracking else False
-    days_interacted = tracking.get('days_interacted', 0) if tracking else 0
-    
-    if final_test_enabled:
-        if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
-            st.session_state.learning_done = True
-            st.session_state.current_page = 'final_assessment'
-            st.rerun()
-    else:
-        st.info(f"📅 You have interacted for {days_interacted}/3 days. Complete 3 days to unlock the final assessment!")
-        st.button("Final Assessment (Locked)", use_container_width=True, disabled=True)
+    if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
+        st.session_state.learning_done = True
+        st.session_state.current_page = 'final_assessment'
+        st.rerun()
 
 
 # ============================================================================
@@ -1370,7 +888,7 @@ def show_final_assessment():
         
         for i, question in enumerate(final_questions):
             st.subheader(f"Question {i+1}")
-            render_latex_content(question['question'])
+            st.markdown(question['question'])
             
             answer = st.radio(
                 "Select your answer:",
@@ -1410,9 +928,6 @@ def show_final_assessment():
                     'final',
                     analysis['analysis']
                 )
-                
-                # Update student tracking - mark final test as completed
-                storage.update_final_test_completion(st.session_state.student_id)
                 
                 # Store in session
                 st.session_state.final_assessment_analysis = analysis['analysis']
@@ -1469,12 +984,12 @@ def show_results():
         with col1:
             st.write("**Pre-Assessment Feedback**")
             with st.container(border=True):
-                render_latex_content(pre_analysis.get('detailed_feedback', 'No feedback available'))
+                st.markdown(pre_analysis.get('detailed_feedback', 'No feedback available'))
         
         with col2:
             st.write("**Final Assessment Feedback**")
             with st.container(border=True):
-                render_latex_content(final_analysis.get('detailed_feedback', 'No feedback available'))
+                st.markdown(final_analysis.get('detailed_feedback', 'No feedback available'))
         
         st.divider()
     
@@ -1500,7 +1015,7 @@ def show_results():
         
         st.divider()
         st.success(f"**Winner**: {comparison.get('winner', 'TBD')}")
-        render_latex_content(comparison.get('analysis', 'Analysis pending'))
+        st.info(comparison.get('analysis', 'Analysis pending'))
     
     st.divider()
     

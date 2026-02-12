@@ -1,0 +1,14 @@
+{
+  "AR123456": {
+    "group": "1",
+    "pre_test_completed": false,
+    "pre_test_date": null,
+    "interaction_dates": [],
+    "days_interacted": 0,
+    "final_test_enabled": false,
+    "final_test_completed": false,
+    "final_test_date": null,
+    "admin_override": false,
+    "created_at": "2026-02-11T20:13:24.755659"
+  }
+}

@@ -72,6 +72,44 @@ Return JSON format:
             max_tokens=MAX_TOKENS
         )
     
+    def _remove_observation_section(self, text: str) -> str:
+        """
+        Remove OBSERVATION section from AI response if present
+        Safety measure to ensure clean feedback
+        """
+        import re
+        
+        # Find first occurrence of THOUGHT or ACTION and start from there
+        thought_match = re.search(r'(?:\*\*)?THOUGHT:', text, re.IGNORECASE)
+        action_match = re.search(r'(?:\*\*)?ACTION:', text, re.IGNORECASE)
+        
+        # Find which comes first
+        start_pos = None
+        if thought_match and action_match:
+            start_pos = min(thought_match.start(), action_match.start())
+        elif thought_match:
+            start_pos = thought_match.start()
+        elif action_match:
+            start_pos = action_match.start()
+        
+        # If we found THOUGHT or ACTION, keep only from that point onwards
+        if start_pos is not None:
+            text = text[start_pos:]
+        
+        # Remove any remaining OBSERVATION lines
+        text = re.sub(
+            r'^.*?OBSERVATION.*?$',
+            '',
+            text,
+            flags=re.MULTILINE | re.IGNORECASE
+        )
+        
+        # Clean up excessive whitespace
+        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+        text = text.strip()
+        
+        return text
+    
     def analyze_assessment(self, student_id: str, answers: List[Dict], questions: List[Dict]) -> Dict[str, Any]:
         """
         Analyze student's assessment answers
@@ -123,14 +161,19 @@ Please analyze this student's performance and provide detailed feedback in JSON 
             message = HumanMessage(content=self.SYSTEM_PROMPT + "\n\n" + analysis_text)
             response = self.llm.invoke([message])
             
+            # Remove OBSERVATION section if present (safety measure)
+            response_text = self._remove_observation_section(response.content)
+            
             # Parse response
             try:
                 # Extract JSON from response
-                response_text = response.content
                 json_start = response_text.find('{')
                 json_end = response_text.rfind('}') + 1
                 if json_start >= 0 and json_end > json_start:
                     analysis_json = json.loads(response_text[json_start:json_end])
+                    # Filter OBSERVATION from feedback field as well
+                    if 'detailed_feedback' in analysis_json:
+                        analysis_json['detailed_feedback'] = self._remove_observation_section(analysis_json['detailed_feedback'])
                 else:
                     analysis_json = {
                         "total_questions": len(answers),
@@ -139,7 +182,7 @@ Please analyze this student's performance and provide detailed feedback in JSON 
                         "difficulty_level": "Moderate",
                         "weak_areas": [],
                         "strong_areas": [],
-                        "detailed_feedback": response.content,
+                        "detailed_feedback": self._remove_observation_section(response_text),
                         "recommendations": [],
                         "next_steps": "Continue learning"
                     }
@@ -151,7 +194,7 @@ Please analyze this student's performance and provide detailed feedback in JSON 
                     "difficulty_level": "Moderate",
                     "weak_areas": [],
                     "strong_areas": [],
-                    "detailed_feedback": response.content,
+                    "detailed_feedback": self._remove_observation_section(response_text if 'response_text' in locals() else response.content),
                     "recommendations": [],
                     "next_steps": "Continue learning"
                 }
