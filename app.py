@@ -64,8 +64,12 @@ storage = DataStorage('data')
 def get_assessment_analyzer():
     return AssessmentAnalyzerAgent()
 
-@st.cache_resource
-def get_customized_tutor():
+@st.cache_resource(ttl=3600)  # Cache for 1 hour, then refresh
+def get_customized_tutor(_version="v2.0"):
+    """
+    Get customized tutor agent. Increment _version to force cache refresh.
+    Current version: v2.0 - Added answer_additional_question method
+    """
     return CustomizedTutorAgent()
 
 @st.cache_resource
