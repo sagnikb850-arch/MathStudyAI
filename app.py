@@ -1110,6 +1110,120 @@ def show_group1_learning():
                     
                     st.rerun()
     
+    # NEW: Additional Questions Chatbox
+    st.subheader(\"💬 Ask Additional Questions\")
+    st.write(\"Got confused about something? Need extra clarification? Ask me anything about trigonometry concepts!\")
+    
+    # Initialize additional chat history
+    if 'additional_chat' not in st.session_state:
+        st.session_state.additional_chat = []
+    
+    # Display additional chat history
+    if st.session_state.additional_chat:
+        st.write(\"**Previous Questions:**\")
+        for msg in st.session_state.additional_chat:
+            with st.chat_message(msg['role']):
+                # Extra safety: Remove any OBSERVATION that might have slipped through
+                content = msg['content']
+                if 'OBSERVATION' in content.upper():
+                    # Emergency filter
+                    import re
+                    lines = [line for line in content.split('\\n') if 'observation' not in line.lower()]
+                    content = '\\n'.join(lines)
+                    content = re.sub(r'(?i)\\*\\*observation:?\\*\\*[^\\n]*(\\n[^\\*]*)*', '', content)
+                    content = re.sub(r'\\n\\s*\\n\\s*\\n+', '\\n\\n', content).strip()
+                st.markdown(content)
+    
+    # Additional question input
+    additional_question = st.chat_input(
+        \"Ask any trigonometry question... (e.g., 'Can you explain sin again?' or 'What's the difference between tan and sin?')\",
+        key=\"additional_question_input\"
+    )
+    
+    if additional_question:
+        # Record interaction
+        storage.record_daily_interaction(st.session_state.student_id)
+        
+        # Add user question to additional chat
+        st.session_state.additional_chat.append({
+            'role': 'user',
+            'content': additional_question
+        })
+        
+        # Save to chat history
+        storage.save_chat_message(
+            st.session_state.student_id,
+            'Group 1 - Additional',
+            'user',
+            additional_question
+        )
+        
+        # Get tutor's response to additional question
+        with st.spinner(\"AI Tutor is thinking about your additional question...\"):
+            additional_response = st.session_state.tutor.answer_additional_question(
+                additional_question,
+                context=f\"Student is learning: {', '.join([c for c in st.session_state.concept_chats.keys()])}\"
+            )
+            
+            if additional_response['success']:
+                st.session_state.additional_chat.append({
+                    'role': 'assistant',
+                    'content': additional_response['answer']
+                })
+                
+                # Save AI response
+                storage.save_chat_message(
+                    st.session_state.student_id,
+                    'Group 1 - Additional',
+                    'assistant',
+                    additional_response['answer']
+                )
+                
+                # Save interaction with full response for admin
+                storage.save_learning_progress(
+                    st.session_state.student_id,
+                    {
+                        'type': 'additional_question',
+                        'question': additional_question,
+                        'tutor_response_filtered': additional_response['answer'],
+                        'tutor_response_full': additional_response.get('full_response', additional_response['answer']),
+                        'student_mood': additional_response.get('student_mood', 'neutral'),
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+            else:
+                st.error(f\"Sorry, I had trouble with that question: {additional_response.get('error', 'Unknown error')}\")
+        
+        st.rerun()
+    
+    # Show student progress summary
+    if hasattr(st.session_state.tutor, 'get_student_progress_summary'):
+        progress = st.session_state.tutor.get_student_progress_summary()
+        
+        with st.expander(\"📊 Your Learning Progress\", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(\"Concepts Explored\", progress['total_concepts_attempted'])
+                st.metric(\"Learning Mood\", progress['current_mood'].title())
+                
+            with col2:
+                st.metric(\"Successes\", progress['success_count'])
+                st.metric(\"Hints Given\", progress['total_hints_given'])
+                
+            with col3:
+                st.metric(\"Steps Completed\", f\"{progress['completed_steps']}/{progress['total_steps']}\")
+                
+                if progress['learning_insights']['is_engaged']:
+                    st.success(\"🌟 You're doing great!\")
+                elif progress['learning_insights']['needs_encouragement']:
+                    st.info(\"💪 Keep going! You're learning!\")
+                    
+            if progress['concepts_mastered']:
+                st.write(\"**Concepts You've Mastered:**\")
+                for concept in progress['concepts_mastered']:
+                    st.write(f\"✅ {concept}\")
+    
     st.divider()
     
     # Check final test eligibility

@@ -13,6 +13,7 @@ class CustomizedTutorAgent:
     """
     AI Tutor using ReAct framework with Socratic questioning.
     Never reveals answers - only guides students through reasoning.
+    Enhanced with ELI5 explanations, multiple hint levels, and struggle tracking.
     """
     
     SYSTEM_PROMPT = r"""You are an expert AI Trigonometry Tutor using the ReAct (Reasoning + Action) framework.
@@ -26,6 +27,37 @@ This is NON-NEGOTIABLE. Every number, variable, equation, angle, or mathematical
 ✅ CORRECT - Always do this:
 - Inline math: $\sin(\theta)$, $x = 5$, $\frac{opposite}{hypotenuse}$, $30^\circ$, $0.5$, $\theta$
 - Display equations: $$\sin^2(\theta) + \cos^2(\theta) = 1$$
+
+🧒 EXPLAIN LIKE I'M 5 (ELI5) APPROACH:
+- Use simple, everyday language and analogies
+- Compare math concepts to familiar objects (pizza slices, playground swings, etc.)
+- Break complex ideas into tiny, digestible pieces
+- Use encouraging, friendly tone like talking to a curious child
+- Give concrete examples before abstract concepts
+
+🎯 MULTIPLE HINT SYSTEM:
+You have 3 types of hints to offer based on student's understanding level:
+1. 🌟 SIMPLE HINT (ELI5): Explain like talking to a 5-year-old with analogies
+2. 📖 STANDARD HINT: Regular mathematical guidance
+3. 🚀 ADVANCED HINT: More sophisticated mathematical insight
+
+Start with SIMPLE hints. If student still struggles, try a DIFFERENT simple approach, not harder ones.
+
+🔍 STRUGGLE DETECTION:
+Watch for signs of struggle:
+- "I don't understand", "I'm confused", "This is hard"
+- Incorrect answers repeated
+- Asking for same concept multiple times
+- Vague or very short responses
+When you detect struggle, become MORE encouraging and use SIMPLER explanations.
+
+✨ PROGRESS CELEBRATION:
+ACTIVELY PRAISE when students:
+- Use knowledge from previous hints correctly
+- Show understanding of a concept
+- Make connections between ideas
+- Attempt to solve problems independently
+- Ask thoughtful follow-up questions
 - Fractions: $\frac{1}{2}$, $\frac{a}{b}$
 - Powers: $x^2$, $\sin^2(\theta)$, $e^x$
 - Roots: $\sqrt{x}$, $\sqrt{2}$, $\sqrt[3]{8}$
@@ -199,7 +231,13 @@ Remember: Your success is measured by student discovery, not by providing answer
             "difficulty_level": student_pre_assessment.get('difficulty_level', 'intermediate') if student_pre_assessment else 'intermediate',
             "misconceptions": [],  # Track recurring errors
             "learning_style": "visual",  # Can be updated based on interactions
-            "progress_notes": []
+            "progress_notes": [],
+            "struggle_indicators": [],  # Track when student is struggling
+            "hint_level_used": "simple",  # Current hint complexity: simple, standard, advanced
+            "successful_applications": [],  # Track when student uses knowledge successfully
+            "concepts_mastered": [],  # Track which concepts student has understood
+            "total_hints_given": 0,
+            "successful_problem_solving": 0
         }
         
         # Session-specific memory (current conversation context)
@@ -210,7 +248,13 @@ Remember: Your success is measured by student discovery, not by providing answer
             "current_step": None,
             "student_attempts": [],
             "conversation_history": [],
-            "tools_used": []
+            "tools_used": [],
+            "current_hint_level": "simple",  # Track current hint level for this session
+            "hints_given_this_concept": 0,
+            "struggle_count_this_session": 0,
+            "success_count_this_session": 0,
+            "last_student_mood": "neutral",  # Track if student seems frustrated/confident
+            "concepts_attempted": []  # Track which concepts tried in this session
         }
         
         # Full conversation history for context
@@ -248,6 +292,79 @@ Remember: Your success is measured by student discovery, not by providing answer
                 return f"📊 Graph visualization: {desc} {range_info}"
         
         return f"📊 If we graph {function} over {range_info}, we can see the pattern of how values change."
+    
+    def _detect_struggle(self, student_input: str) -> bool:
+        """
+        Detect if student is struggling based on their input
+        """
+        struggle_phrases = [
+            "i don't understand", "i'm confused", "this is hard", "i don't get it",
+            "what does this mean", "i'm lost", "this doesn't make sense", "help",
+            "i'm stuck", "i can't", "this is difficult", "i don't know"
+        ]
+        
+        # Check for struggle indicators
+        student_lower = student_input.lower()
+        is_struggling = any(phrase in student_lower for phrase in struggle_phrases)
+        
+        # Also check for very short responses (less than 5 words) - might indicate confusion
+        if len(student_input.split()) < 5 and not is_struggling:
+            is_struggling = True
+            
+        # Track if struggling
+        if is_struggling:
+            self.session_memory['struggle_count_this_session'] += 1
+            self.student_memory['struggle_indicators'].append({
+                'input': student_input,
+                'concept': self.session_memory.get('current_problem', 'unknown'),
+                'timestamp': 'current_session'
+            })
+            self.session_memory['last_student_mood'] = 'frustrated'
+        
+        return is_struggling
+    
+    def _detect_success(self, student_input: str, tutor_response: str) -> bool:
+        """
+        Detect if student is successfully using knowledge from hints
+        """
+        success_indicators_in_response = [
+            "correct", "excellent", "great", "perfect", "right", "good job", 
+            "well done", "exactly", "that's it", "you got it", "brilliant"
+        ]
+        
+        # Check if tutor praised the student
+        tutor_praised = any(indicator in tutor_response.lower() for indicator in success_indicators_in_response)
+        
+        # Check if student is building on previous concepts
+        mathematical_terms = ["sin", "cos", "tan", "opposite", "adjacent", "hypotenuse", "angle", "triangle"]
+        uses_math_concepts = any(term in student_input.lower() for term in mathematical_terms)
+        
+        is_successful = tutor_praised or (uses_math_concepts and len(student_input.split()) > 8)
+        
+        if is_successful:
+            self.session_memory['success_count_this_session'] += 1
+            self.student_memory['successful_applications'].append({
+                'input': student_input,
+                'concept': self.session_memory.get('current_problem', 'unknown'),
+                'timestamp': 'current_session'
+            })
+            self.session_memory['last_student_mood'] = 'confident'
+            
+        return is_successful
+    
+    def _get_eli5_hint(self, concept: str, specific_question: str) -> str:
+        """
+        Generate an Explain Like I'm 5 hint for the given concept
+        """
+        eli5_hints = {
+            "sine": "🍕 Imagine $\\sin$ is like cutting a pizza! In a right triangle, $\\sin$ is like asking 'How big is the slice opposite to our angle compared to the whole pizza?' It's $\\frac{\\text{opposite side}}{\\text{longest side}}$!",
+            "cosine": "🏠 Think of $\\cos$ like the ground next to a house! In a right triangle, $\\cos$ is asking 'How long is the ground next to our angle compared to the ladder?' It's $\\frac{\\text{next-to side}}{\\text{longest side}}$!",
+            "tangent": "🏔️ Imagine $\\tan$ as climbing a mountain! It's asking 'How steep is our climb?' We compare how high we go to how far we walk forward: $\\frac{\\text{up}}{\\text{forward}}$!",
+            "sohcahtoa": "🎵 SOH-CAH-TOA is like a magic song! S-O-H means $\\sin$ = $\\frac{\\text{Opposite}}{\\text{Hypotenuse}}$. C-A-H means $\\cos$ = $\\frac{\\text{Adjacent}}{\\text{Hypotenuse}}$. T-O-A means $\\tan$ = $\\frac{\\text{Opposite}}{\\text{Adjacent}}$!",
+            "inverse": "🔄 Inverse functions are like undoing magic! If $\\sin(30°) = 0.5$, then $\\arcsin(0.5) = 30°$. It's like asking 'What angle gives us this number?'",
+            "special angles": "⭐ Special angles are like birthday candles on a cake! $30°$, $45°$, and $60°$ are the most common ones, just like ages $5$, $10$, and $15$ are common for birthdays!",
+            "pythagorean": "📏 The Pythagorean identity $\\sin^2(\\theta) + \\cos^2(\\theta) = 1$ is like a magical rule that always works! It's saying the two important parts of our triangle always add up to make a perfect whole!"
+        }\n        \n        # Find relevant hint\n        for key, hint in eli5_hints.items():\n            if key in concept.lower() or key in specific_question.lower():\n                return hint\n                \n        # Default ELI5 approach\n        return f\"🌟 Let's think about {concept} like building with blocks! What do you think the most important piece is?\"\n    \n    def _generate_different_hint(self, concept: str, previous_hints: list) -> str:\n        \"\"\"\n        Generate a different approach to explain the same concept\n        \"\"\"\n        # Track that we're giving multiple hints for same concept\n        self.session_memory['hints_given_this_concept'] += 1\n        \n        # Different approaches for common concepts\n        different_approaches = {\n            \"sine\": [\n                \"🎡 Think of $\\sin$ like a Ferris wheel! As you go around, $\\sin$ tells you how high you are compared to the center.\",\n                \"🌊 $\\sin$ is like ocean waves! It goes up and down in a smooth pattern between $-1$ and $1$.\",\n                \"👥 In our triangle family, $\\sin$ is the child who always compares the opposite side to the hypotenuse parent!\"\n            ],\n            \"cosine\": [\n                \"🚗 Think of $\\cos$ like driving! It tells you how much you've moved forward compared to the total distance.\",\n                \"🌲 $\\cos$ is like the shadow of a tree! As the sun moves, the shadow length changes based on the angle.\",\n                \"🏠 $\\cos$ is the friendly neighbor who lives next to the angle in our triangle neighborhood!\"\n            ],\n            \"tangent\": [\n                \"🏗️ $\\tan$ is like building a ramp! The steeper the ramp, the bigger the $\\tan$ value.\",\n                \"🎢 Think of $\\tan$ as the slope of a roller coaster! It tells us how steep the ride is.\",\n                \"📐 $\\tan$ is like drawing a line from a corner - it shows the steepness of that line!\"\n            ]\n        }\n        \n        for key, approaches in different_approaches.items():\n            if key in concept.lower():\n                # Return the next approach we haven't used\n                hint_index = min(len(approaches) - 1, self.session_memory['hints_given_this_concept'] - 1)\n                return approaches[hint_index]\n        \n        return f\"🔄 Let's try a completely different way to think about {concept}! What if we imagined it as something you see every day?\"\n    \n    def _provide_guidance_after_hint(self, concept: str, hint_given: str) -> str:\n        \"\"\"\n        Provide additional guidance to help student move toward the answer\n        \"\"\"\n        guidance_templates = [\n            \"💡 Now that you have this hint, try to think: what would be your next step?\",\n            \"🎯 Using what I just explained, can you tell me what you think we should do next?\",\n            \"✨ Great! Now with this new understanding, what question should we ask about our triangle?\",\n            \"🚀 Perfect! Now let's use this idea - what part of the problem can we solve first?\",\n            \"🌟 Wonderful! Now that we understand this concept, how might we apply it to our specific problem?\"\n        ]\n        \n        # Rotate through different guidance approaches\n        guidance_index = self.session_memory['hints_given_this_concept'] % len(guidance_templates)\n        return guidance_templates[guidance_index]
     
     def _remove_observation_section(self, text: str) -> str:
         """
@@ -352,17 +469,64 @@ Remember: Your success is measured by student discovery, not by providing answer
             self.session_memory['problem_steps'] = self._break_into_steps(problem, concept)
             self.session_memory['completed_steps'] = []
             self.session_memory['current_step'] = self.session_memory['problem_steps'][0] if self.session_memory['problem_steps'] else None
+            self.session_memory['concepts_attempted'].append(concept)
             
-            # Build context-aware prompt
-            context = f"""
+            # Reset hint tracking for new concept
+            self.session_memory['current_hint_level'] = 'simple'
+            self.session_memory['hints_given_this_concept'] = 0
+            
+            # Increment total hints given
+            self.student_memory['total_hints_given'] += 1
+            
+            # Build context-aware prompt with enhanced guidance
+            context = f\"\"\"
 📚 **Current Learning Context:**
 - Concept: {concept}
 - Student Level: {student_level}
 - Weak Areas: {', '.join(self.student_memory['weak_areas']) if self.student_memory['weak_areas'] else 'None identified yet'}
 - Difficulty: {self.student_memory['difficulty_level']}
+- Previous Struggles: {len(self.student_memory['struggle_indicators'])} instances
+- Previous Successes: {len(self.student_memory['successful_applications'])} instances
+- Student Mood: {self.session_memory['last_student_mood']}
 
 📝 **Problem/Question:** {problem}
 🔑 **Key Hint Available:** {hint}
+
+🎯 **Your Enhanced Teaching Task:**
+
+🚨 CRITICAL: Your response MUST have ONLY two sections:
+1. **THOUGHT:** [Your analysis]
+2. **ACTION:** [Your guiding question]
+
+❌ DO NOT write \"OBSERVATION\" anywhere in your response!
+❌ DO NOT write \"**OBSERVATION:**\"!
+
+✨ **Special Instructions for This Student:**
+- This student has had {self.session_memory['struggle_count_this_session']} struggles this session
+- This student has had {self.session_memory['success_count_this_session']} successes this session
+- Current hint level should be: {self.session_memory['current_hint_level']}
+- Use SIMPLE, ELI5 explanations with analogies and friendly tone
+- If student struggles, try DIFFERENT simple approaches, don't go harder
+- Celebrate any small progress enthusiastically
+
+Format:
+**THOUGHT:** [Analyze the problem and what the student needs to discover. Focus on simple, encouraging approach. DO NOT reveal the answer.]
+
+**ACTION:** [Ask ONE ELI5-style Socratic question with an analogy. Include an emoji. Do not reveal the answer!]
+
+After your ACTION, add: \"Try to answer that, and I'll guide you to the next step! 🌟\"
+
+Remember: 
+- DO NOT solve the problem for them
+- DO NOT give the final answer  
+- Present ONE thought and ONE action per turn
+- DO NOT write the word \"OBSERVATION\"
+- ONLY write THOUGHT and ACTION sections
+- Use simple, friendly language like talking to a curious child
+- Include analogies and emojis to make it fun
+
+**Begin your enhanced tutoring response now:**
+\"\"\"
 
 🎯 **Your Task:**
 
@@ -436,22 +600,86 @@ Remember:
         Continues Socratic dialogue, never reveals the answer
         """
         try:
+            # Detect if student is struggling or succeeding
+            is_struggling = self._detect_struggle(student_question)
+            
             # Add student question to memory
             self.session_memory['student_attempts'].append({
-                "question": student_question,
-                "response": student_previous_response,
-                "timestamp": "current"
+                \"question\": student_question,
+                \"response\": student_previous_response,
+                \"timestamp\": \"current\",
+                \"struggling\": is_struggling
             })
             
-            # Build ReAct prompt with full context
-            memory_context = f"""
-🧠 **Student Memory:**
+            # Determine hint strategy based on struggle
+            if is_struggling:
+                # If struggling, provide a different ELI5 hint or explanation
+                help_context = self._get_eli5_hint(
+                    self.session_memory.get('current_problem', ''), 
+                    student_question
+                )
+                different_hint = self._generate_different_hint(
+                    self.session_memory.get('current_problem', ''),
+                    self.session_memory.get('student_attempts', [])
+                )
+            
+            # Build enhanced ReAct prompt with full context
+            memory_context = f\"\"\"
+🧠 **Enhanced Student Memory:**
 - Weak Areas: {', '.join(self.student_memory['weak_areas'])}
 - Known Misconceptions: {', '.join(self.student_memory['misconceptions']) if self.student_memory['misconceptions'] else 'None yet'}
 - Difficulty Level: {self.student_memory['difficulty_level']}
+- Total Struggles This Session: {self.session_memory['struggle_count_this_session']}
+- Total Successes This Session: {self.session_memory['success_count_this_session']}
+- Current Student Mood: {self.session_memory['last_student_mood']}
+- Is Currently Struggling: {is_struggling}
 
 📝 **Current Session:**
 - Problem: {self.session_memory.get('current_problem', 'General question')}
+- Steps in Problem: {' → '.join(self.session_memory.get('problem_steps', []))}
+- Current Step: {self.session_memory.get('current_step', 'Not set')}
+- Completed Steps: {' ✓ '.join(self.session_memory.get('completed_steps', [])) if self.session_memory.get('completed_steps') else 'None yet'}
+- Hints Given This Concept: {self.session_memory['hints_given_this_concept']}
+
+💬 **Recent Conversation:**
+{self._format_recent_history(3)}
+
+🎓 **Student's Current Question/Response:**
+\"{student_question}\"
+{f'Previous Response: \"{student_previous_response}\"' if student_previous_response else ''}
+
+🎯 **Enhanced Response Requirements:**
+
+🚨 CRITICAL: Your response MUST contain ONLY these two sections:
+1. **THOUGHT:**
+2. **ACTION:**
+
+❌ FORBIDDEN: Do NOT write \"OBSERVATION\" anywhere!
+❌ FORBIDDEN: Do NOT write \"**OBSERVATION:**\"!
+
+✨ **Special Guidance Based on Student State:**
+{'🆘 STRUGGLE DETECTED! Use extra encouragement, simpler language, and different analogies.' if is_struggling else '🌟 Student seems engaged! Build on their understanding.'}
+- Current hint level: {self.session_memory['current_hint_level']}
+- Provide ELI5 explanations with fun analogies
+- Use emojis and encouraging language
+- If student struggling, try DIFFERENT simple approaches (not harder)
+- If student succeeding, acknowledge and guide to next step
+
+Format:
+**THOUGHT:** [Your analysis of student's response and what they need next. Be encouraging!]
+
+**ACTION:** [ONE guiding hint with emoji and analogy. Include guidance toward next step.]
+
+After your ACTION, add this guidance: \"{self._provide_guidance_after_hint(self.session_memory.get('current_problem', 'concept'), 'current_hint')}\"
+
+Remember your core principles:
+- NEVER REVEAL THE ANSWER directly
+- Use Socratic questioning with simple analogies
+- Be extra encouraging if student is struggling
+- Celebrate any progress or understanding shown
+- Guide step-by-step toward discovery
+
+**Your Response:**\"\"\"
 - Steps in Problem: {' → '.join(self.session_memory.get('problem_steps', []))}
 - Current Step: {self.session_memory.get('current_step', 'Not set')}
 - Completed Steps: {' ✓ '.join(self.session_memory.get('completed_steps', [])) if self.session_memory.get('completed_steps') else 'None yet'}
@@ -562,6 +790,11 @@ STOP HERE and wait for their response.
         praise_indicators = ["correct", "excellent", "great", "right", "good job", "well done", "perfect"]
         return any(praise in tutor_response.lower() for praise in praise_indicators)
     
-    def get_chat_history(self) -> List[Dict[str, str]]:
+    
+    def answer_additional_question(self, question: str, context: str = \"\") -> Dict[str, Any]:
+        \"\"\"\n        Handle additional questions from the separate chatbox\n        Provides helpful explanations while maintaining ReAct format\n        \"\"\"\n        try:\n            # Track this as an additional question\n            self.session_memory['student_attempts'].append({\n                \"question\": question,\n                \"type\": \"additional_question\",\n                \"context\": context,\n                \"timestamp\": \"current\"\n            })\n            \n            # Detect struggling\n            is_struggling = self._detect_struggle(question)\n            \n            # Build context for additional question\n            additional_context = f\"\"\"\n🤔 **Additional Question Support:**\nThe student is asking an additional question while learning: \"{question}\"\n\n🧠 **Current Learning Context:**\n- Main Problem: {self.session_memory.get('current_problem', 'None')}\n- Student Mood: {self.session_memory['last_student_mood']}\n- Struggle Count: {self.session_memory['struggle_count_this_session']}\n- Success Count: {self.session_memory['success_count_this_session']}\n- Is Currently Struggling: {is_struggling}\n\n🎯 **Your Task for Additional Question:**\n\n🚨 CRITICAL: Your response MUST have ONLY two sections:\n1. **THOUGHT:** [Your analysis]\n2. **ACTION:** [Your helpful guidance]\n\n❌ DO NOT write \"OBSERVATION\" anywhere!\n\n✨ **Guidelines for Additional Questions:**\n- Provide helpful guidance without giving away main problem answers\n- Use ELI5 explanations with analogies and emojis\n- Connect their question to the main concept if relevant\n- Be extra encouraging if they're struggling with main problem\n- Keep them engaged and curious about learning\n\nFormat:\n**THOUGHT:** [Analyze their additional question and how it relates to their learning.]\n\n**ACTION:** [Provide a helpful, encouraging response with analogy and emoji. Don't solve their main problem for them!]\n\nAdd this at the end: \"Does this help with your understanding? Feel free to ask more questions! 💝\"\n\n**Your Response:**\"\"\"\n            \n            # Get AI response\n            response = self.llm.invoke([\n                SystemMessage(content=self.SYSTEM_PROMPT),\n                HumanMessage(content=additional_context)\n            ])\n            \n            response_text = response.content\n            filtered_response = self._remove_observation_section(response_text)\n            \n            # Store in message history\n            self.messages.append({\"role\": \"assistant\", \"content\": response_text})\n            self.session_memory['conversation_history'].append({\n                \"type\": \"additional_question\",\n                \"question\": question,\n                \"tutor_response\": filtered_response\n            })\n            \n            return {\n                \"success\": True,\n                \"question\": question,\n                \"answer\": filtered_response,\n                \"full_response\": response_text,\n                \"type\": \"additional_question\",\n                \"student_mood\": self.session_memory['last_student_mood']\n            }\n            \n        except Exception as e:\n            print(f\"Error in answer_additional_question: {e}\")\n            return {\n                \"success\": False,\n                \"error\": str(e),\n                \"question\": question\n            }
+    
+    def get_student_progress_summary(self) -> Dict[str, Any]:
+        \"\"\"\n        Get a summary of student's learning progress and state\n        \"\"\"\n        return {\n            \"total_concepts_attempted\": len(self.session_memory.get('concepts_attempted', [])),\n            \"struggle_count\": self.session_memory['struggle_count_this_session'],\n            \"success_count\": self.session_memory['success_count_this_session'],\n            \"current_mood\": self.session_memory['last_student_mood'],\n            \"hint_level\": self.session_memory['current_hint_level'],\n            \"total_hints_given\": self.student_memory['total_hints_given'],\n            \"completed_steps\": len(self.session_memory.get('completed_steps', [])),\n            \"total_steps\": len(self.session_memory.get('problem_steps', [])),\n            \"concepts_mastered\": self.student_memory.get('concepts_mastered', []),\n            \"learning_insights\": {\n                \"is_engaged\": self.session_memory['success_count_this_session'] > self.session_memory['struggle_count_this_session'],\n                \"needs_encouragement\": self.session_memory['struggle_count_this_session'] > 2,\n                \"ready_for_next_level\": len(self.student_memory.get('concepts_mastered', [])) > 3\n            }\n        }\n\n    def get_chat_history(self) -> List[Dict[str, str]]:
         """Get conversation history"""
         return self.session_memory.get('conversation_history', [])
