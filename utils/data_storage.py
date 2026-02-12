@@ -401,6 +401,10 @@ class DataStorage:
             if os.path.exists('data/performance_ratings.csv'):
                 os.remove('data/performance_ratings.csv')
             
+            # Delete assessments CSV if it exists
+            if os.path.exists('data/assessments.csv'):
+                os.remove('data/assessments.csv')
+            
             return True
         except Exception as e:
             print(f"Error resetting all data: {e}")

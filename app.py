@@ -179,13 +179,14 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Progress Report", 
         "🏆 Comparison", 
         "📝 Manage Questions", 
         "💡 Practice Questions",
         "💬 Chat History",
         "👥 Student Management",
+        "📋 Assessment Responses",
         "🗑️ Reset Data"
     ])
     
@@ -208,6 +209,9 @@ def show_admin_dashboard():
         show_admin_student_management()
     
     with tab7:
+        show_admin_assessment_responses()
+    
+    with tab8:
         show_admin_reset_data()
 
 
@@ -664,6 +668,108 @@ def show_admin_student_management():
                 st.write(f"- 📅 {date}")
         else:
             st.info("No interactions recorded yet")
+
+
+def show_admin_assessment_responses():
+    """View detailed student assessment responses"""
+    st.header("📋 Student Assessment Responses")
+    st.write("View detailed answers to pre-test and final test questions")
+    
+    # Check if assessments file exists
+    if not os.path.exists('data/assessments.csv'):
+        st.info("No assessment responses available yet.")
+        return
+    
+    # Load assessments
+    df = pd.read_csv('data/assessments.csv')
+    
+    if len(df) == 0:
+        st.info("No assessment responses available yet.")
+        return
+    
+    # Filter options
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        filter_group = st.selectbox("Filter by Group", ["All", "Group 1", "Group 2"], key="resp_group")
+    with col2:
+        filter_type = st.selectbox("Assessment Type", ["All", "Pre-Assessment", "Final Assessment"], key="resp_type")
+    with col3:
+        student_ids = ["All"] + sorted(df['student_id'].unique().tolist())
+        selected_student = st.selectbox("Select Student", student_ids, key="resp_student")
+    
+    # Apply filters
+    filtered_df = df.copy()
+    if filter_group != "All":
+        filtered_df = filtered_df[filtered_df['group'] == ('1' if filter_group == "Group 1" else '2')]
+    if filter_type != "All":
+        filtered_df = filtered_df[filtered_df['assessment_type'] == ('pre' if filter_type == "Pre-Assessment" else 'final')]
+    if selected_student != "All":
+        filtered_df = filtered_df[filtered_df['student_id'] == selected_student]
+    
+    st.divider()
+    
+    if len(filtered_df) == 0:
+        st.warning("No responses match the selected filters.")
+        return
+    
+    # Display summary
+    st.subheader("📊 Summary")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Responses", len(filtered_df))
+    with col2:
+        avg_score = filtered_df['score'].mean() if 'score' in filtered_df.columns else 0
+        st.metric("Average Score", f"{avg_score:.1f}%")
+    with col3:
+        unique_students = filtered_df['student_id'].nunique()
+        st.metric("Unique Students", unique_students)
+    
+    st.divider()
+    
+    # Display detailed responses
+    st.subheader("📝 Detailed Responses")
+    
+    for idx, row in filtered_df.iterrows():
+        student_id = row['student_id']
+        group = "Group 1" if row['group'] == '1' else "Group 2"
+        assessment = "Pre-Assessment" if row['assessment_type'] == 'pre' else "Final Assessment"
+        timestamp = row['timestamp'].split('T')[0] if 'T' in str(row['timestamp']) else row['timestamp']
+        score = row.get('score', 0)
+        
+        with st.expander(f"📄 {student_id} - {group} - {assessment} - {timestamp} (Score: {score}%)"):
+            st.write(f"**Student ID:** {student_id}")
+            st.write(f"**Group:** {group}")
+            st.write(f"**Assessment Type:** {assessment}")
+            st.write(f"**Date:** {timestamp}")
+            st.write(f"**Score:** {score}%")
+            
+            st.divider()
+            st.subheader("Responses:")
+            
+            # Display each question's answer
+            for i in range(1, 6):
+                col_name = f'q{i}_answer'
+                if col_name in row and pd.notna(row[col_name]) and row[col_name]:
+                    st.write(f"**Question {i}:**")
+                    st.text_area(
+                        f"Answer {i}",
+                        value=row[col_name],
+                        height=150,
+                        disabled=True,
+                        key=f"resp_{idx}_q{i}",
+                        label_visibility="collapsed"
+                    )
+                    st.write("")
+    
+    # Download option
+    st.divider()
+    csv = filtered_df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Filtered Responses as CSV",
+        data=csv,
+        file_name=f"assessment_responses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
 
 
 def show_admin_reset_data():
