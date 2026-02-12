@@ -996,7 +996,31 @@ def show_group1_learning():
     if 'tutor' not in st.session_state:
         st.session_state.tutor = get_customized_tutor()
     
-    # Initialize concept chat history
+    # Load chat history from storage for returning students
+    if 'chat_history_loaded' not in st.session_state:
+        stored_chats = storage.get_chat_history(st.session_state.student_id)
+        if stored_chats:
+            st.session_state.stored_chat_history = stored_chats
+        else:
+            st.session_state.stored_chat_history = []
+        st.session_state.chat_history_loaded = True
+    
+    # Display previous chat history if exists
+    if st.session_state.get('stored_chat_history', []):
+        with st.expander("📝 Your Previous Chat History", expanded=True):
+            st.write("Here are your previous interactions with the AI tutor:")
+            for chat in st.session_state.stored_chat_history:
+                role = chat.get('role', 'user')
+                message = chat.get('message', '')
+                timestamp = chat.get('timestamp', '').split('T')[0] if 'T' in chat.get('timestamp', '') else ''
+                
+                with st.chat_message(role):
+                    if timestamp:
+                        st.caption(f"📅 {timestamp}")
+                    render_latex_content(message)
+            st.divider()
+    
+    # Initialize concept chat history for new messages
     if 'concept_chats' not in st.session_state:
         st.session_state.concept_chats = {}
     
@@ -1136,10 +1160,22 @@ def show_group2_learning():
     st.write("---")
     st.subheader("💬 Chat with AI Assistant")
     
-    # Display chat history
+    # Load chat history from storage for returning students
     if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
+        stored_chats = storage.get_chat_history(st.session_state.student_id)
+        if stored_chats:
+            # Convert stored format to session state format
+            st.session_state.chat_history = [
+                {
+                    'role': chat.get('role', 'user'),
+                    'content': chat.get('message', '')
+                }
+                for chat in stored_chats
+            ]
+        else:
+            st.session_state.chat_history = []
     
+    # Display chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg['role']):
             render_latex_content(msg['content'])
