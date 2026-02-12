@@ -25,6 +25,7 @@ class GoogleDriveSync:
         """Initialize Google Drive API client"""
         self.service = None
         self.enabled = False
+        self.folder_id = self.FOLDER_ID
         self._initialize_service()
     
     def _initialize_service(self):
