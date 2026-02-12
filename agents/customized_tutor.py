@@ -545,34 +545,36 @@ Remember: Your success is measured by student discovery, not by providing answer
 - Difficulty: {self.student_memory['difficulty_level']}
 - Previous Struggles: {len(self.student_memory['struggle_indicators'])} instances
 - Previous Successes: {len(self.student_memory['successful_applications'])} instances
-- Student Mood: {self.session_memory['last_student_mood']}
 
 📝 **Problem/Question:** {problem}
 🔑 **Key Hint Available:** {hint}
 
-🎯 **Your Enhanced Teaching Task:**
+🎯 **Your Teaching Task:**
 
-🚨 CRITICAL: Your response MUST have ONLY two sections:
-1. **THOUGHT:** [Your analysis]
-2. **ACTION:** [Your guiding question]
+🚨🚨🚨 CRITICAL REMINDER - NO EXCEPTIONS:
+❌ ABSOLUTELY FORBIDDEN: ANY analogies, stories, characters, "Imagine...", real-world objects
+❌ NO: friends, wheels, spinning, games, merry-go-rounds, "Siney and Cosy", magical anything
+❌ NO: "Think of it like...", "Picture...", "Consider a...", storytelling
+✅ USE ONLY: Mathematical terminology, definitions, properties, equations, relationships
+
+Your response MUST have ONLY two sections:
+1. **THOUGHT:** [Your mathematical analysis]
+2. **ACTION:** [Your guiding mathematical question]
 
 ❌ DO NOT write "OBSERVATION" anywhere in your response!
-❌ DO NOT write "**OBSERVATION:**"!
 
-✨ **Special Instructions for This Student:**
-- This student has had {self.session_memory['struggle_count_this_session']} struggles this session
-- This student has had {self.session_memory['success_count_this_session']} successes this session
-- Current hint level should be: {self.session_memory['current_hint_level']}
-- Use clear mathematical explanations appropriate to their level
-- If student struggles, provide alternative perspectives or break down concepts
-- Acknowledge progress and provide encouragement
+✨ **Adaptive Guidance:**
+- Student struggles this session: {self.session_memory['struggle_count_this_session']}
+- Student successes this session: {self.session_memory['success_count_this_session']}
+- Current hint level: {self.session_memory['current_hint_level']}
+- Use ONLY pure mathematical language and terminology
+- If student struggles, provide alternative MATHEMATICAL perspectives or break into smaller algebraic steps
+- NO analogies or stories under any circumstances
 
-Format:
-**THOUGHT:** [Analyze the problem and what the student needs to discover. Focus on guiding approach. DO NOT reveal the answer.]
+Format (STRICT):
+**THOUGHT:** [Analyze mathematically what the student needs to discover. Focus on mathematical relationships and properties. DO NOT reveal the answer.]
 
-**ACTION:** [Ask ONE focused Socratic question to guide their thinking. Do not reveal the answer!]
-
-After your ACTION, add: "Try to answer that, and I'll guide you to the next step! 🌟"
+**ACTION:** [Ask ONE focused mathematical question to guide their reasoning. Use ONLY mathematical language. Do not reveal the answer.]
 
 Remember: 
 - DO NOT solve the problem for them
@@ -580,10 +582,11 @@ Remember:
 - Present ONE thought and ONE action per turn
 - DO NOT write the word "OBSERVATION"
 - ONLY write THOUGHT and ACTION sections
-- Use clear mathematical language with helpful explanations
-- Include encouragement and guidance
+- Use ONLY mathematical language: angles, functions, equations, identities, properties
+- NO analogies, stories, or "Imagine..." phrases whatsoever
+- Stay strictly mathematical at all times
 
-**Begin your enhanced tutoring response now:**
+**Begin your mathematical tutoring response now:**
 """
 
             
@@ -654,13 +657,12 @@ Remember:
             
             # Build enhanced ReAct prompt with full context
             memory_context = f"""
-🧠 **Enhanced Student Memory:**
+🧠 **Student Memory:**
 - Weak Areas: {', '.join(self.student_memory['weak_areas'])}
 - Known Misconceptions: {', '.join(self.student_memory['misconceptions']) if self.student_memory['misconceptions'] else 'None yet'}
 - Difficulty Level: {self.student_memory['difficulty_level']}
 - Total Struggles This Session: {self.session_memory['struggle_count_this_session']}
 - Total Successes This Session: {self.session_memory['success_count_this_session']}
-- Current Student Mood: {self.session_memory['last_student_mood']}
 - Is Currently Struggling: {is_struggling}
 
 📝 **Current Session:**
@@ -677,38 +679,41 @@ Remember:
 "{student_question}"
 {f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
 
-🎯 **Enhanced Response Requirements:**
+🎯 **Response Requirements:**
 
-🚨 CRITICAL: Your response MUST contain ONLY these two sections:
-1. **THOUGHT:**
-2. **ACTION:**
+🚨🚨🚨 CRITICAL REMINDER - NO EXCEPTIONS:
+❌ ABSOLUTELY FORBIDDEN: ANY analogies, stories, characters, "Imagine...", real-world objects
+❌ NO: friends, wheels, spinning, games, merry-go-rounds, personification, magical anything
+❌ NO: "Think of it like...", "Picture...", "Consider a...", storytelling
+✅ USE ONLY: Mathematical terminology, definitions, properties, equations, algebraic relationships
 
-❌ FORBIDDEN: Do NOT write "OBSERVATION" anywhere!
-❌ FORBIDDEN: Do NOT write "**OBSERVATION:**"!
+Your response MUST contain ONLY these two sections:
+1. **THOUGHT:** [Mathematical analysis]
+2. **ACTION:** [Mathematical question/hint]
 
-✨ **Special Guidance Based on Student State:**
-{'🆘 STRUGGLE DETECTED! Use extra encouragement and provide alternative explanations.' if is_struggling else '🌟 Student seems engaged! Build on their understanding.'}
+❌ DO NOT write "OBSERVATION" anywhere in your response!
+
+✨ **Adaptive Guidance:**
+{'🆘 Student struggling - provide alternative MATHEMATICAL perspective or break into smaller steps.' if is_struggling else 'Student progressing - continue mathematical guidance.'}
 - Current hint level: {self.session_memory['current_hint_level']}
-- Provide clear mathematical explanations
-- Use encouraging language
-- If student struggling, try different perspectives or break concepts down
-- If student succeeding, acknowledge and guide to next step
+- Use ONLY pure mathematical language
+- If struggling, try different mathematical approaches
+- If succeeding, acknowledge and guide mathematically to next step
 
-Format:
-**THOUGHT:** [Your analysis of student's response and what they need next. Be encouraging!]
+Format (STRICT):
+**THOUGHT:** [Mathematically analyze student's response and what they need next. Use mathematical praise if appropriate.]
 
-**ACTION:** [ONE guiding question or hint to help them progress. Include guidance toward next step.]
-
-After your ACTION, add this guidance: "{self._provide_guidance_after_hint(self.session_memory.get('current_problem', 'concept'), 'current_hint')}"
+**ACTION:** [ONE mathematical question or hint to help them progress. Use ONLY mathematical language, properties, and relationships.]
 
 Remember your core principles:
 - NEVER REVEAL THE ANSWER directly
-- Use Socratic questioning with simple analogies
-- Be extra encouraging if student is struggling
-- Celebrate any progress or understanding shown
-- Guide step-by-step toward discovery
+- Use ONLY mathematical Socratic questioning - NO analogies whatsoever
+- Be encouraging but stay professional and mathematical
+- Celebrate mathematical understanding with specific mathematical praise
+- Guide step-by-step using mathematical concepts only
+- NO storytelling, analogies, or "Imagine..." phrases under any circumstances
 
-**Your Response:**"""
+**Your Mathematical Response:**"""
             
             # Get AI response with enhanced memory context
             response = self.llm.invoke([
@@ -785,7 +790,7 @@ Remember your core principles:
     def answer_additional_question(self, question: str, context: str = "") -> Dict[str, Any]:
         """
         Handle additional questions from the separate chatbox
-        Provides helpful explanations while maintaining ReAct format
+        Provides helpful explanations while maintaining ReAct format and mathematical rigor
         """
         try:
             # Track this as an additional question
@@ -806,34 +811,37 @@ The student is asking an additional question while learning: "{question}"
 
 🧠 **Current Learning Context:**
 - Main Problem: {self.session_memory.get('current_problem', 'None')}
-- Student Mood: {self.session_memory['last_student_mood']}
 - Struggle Count: {self.session_memory['struggle_count_this_session']}
 - Success Count: {self.session_memory['success_count_this_session']}
 - Is Currently Struggling: {is_struggling}
 
 🎯 **Your Task for Additional Question:**
 
-🚨 CRITICAL: Your response MUST have ONLY two sections:
-1. **THOUGHT:** [Your analysis]
-2. **ACTION:** [Your helpful guidance]
+🚨🚨🚨 CRITICAL REMINDER - NO EXCEPTIONS:
+❌ ABSOLUTELY FORBIDDEN: ANY analogies, stories, characters, "Imagine...", real-world objects
+❌ NO: friends, wheels, spinning, games, merry-go-rounds, personification, magical anything
+❌ NO: "Think of it like...", "Picture...", "Consider a...", storytelling
+✅ USE ONLY: Mathematical terminology, definitions, properties, equations, algebraic relationships
 
-❌ DO NOT write "OBSERVATION" anywhere!
+Your response MUST have ONLY two sections:
+1. **THOUGHT:** [Mathematical analysis]
+2. **ACTION:** [Mathematical guidance]
+
+❌ DO NOT write "OBSERVATION" anywhere in your response!
 
 ✨ **Guidelines for Additional Questions:**
-- Provide helpful mathematical guidance without giving away main problem answers
-- Use clear explanations appropriate to their level
-- Connect their question to the main concept if relevant
-- Be extra encouraging if they're struggling with main problem
-- Keep them engaged and curious about learning
+- Provide mathematical guidance without giving away main problem answers
+- Use pure mathematical language and concepts
+- Connect their question to mathematical principles if relevant
+- Stay strictly mathematical - NO analogies or stories
+- Keep focus on mathematical understanding
 
-Format:
-**THOUGHT:** [Analyze their additional question and how it relates to their learning.]
+Format (STRICT):
+**THOUGHT:** [Mathematically analyze their additional question and how it relates to their learning.]
 
-**ACTION:** [Provide a helpful, encouraging mathematical response. Don't solve their main problem for them!]
+**ACTION:** [Provide mathematical guidance using ONLY mathematical terminology, properties, and relationships. Do not solve their main problem for them.]
 
-Add this at the end: "Does this help with your understanding? Feel free to ask more questions! 💝"
-
-**Your Response:**"""
+**Your Mathematical Response:**"""
             
             # Get AI response
             response = self.llm.invoke([
