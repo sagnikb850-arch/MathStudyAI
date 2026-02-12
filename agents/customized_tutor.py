@@ -364,7 +364,49 @@ Remember: Your success is measured by student discovery, not by providing answer
             "inverse": "🔄 Inverse functions are like undoing magic! If $\\sin(30°) = 0.5$, then $\\arcsin(0.5) = 30°$. It's like asking 'What angle gives us this number?'",
             "special angles": "⭐ Special angles are like birthday candles on a cake! $30°$, $45°$, and $60°$ are the most common ones, just like ages $5$, $10$, and $15$ are common for birthdays!",
             "pythagorean": "📏 The Pythagorean identity $\\sin^2(\\theta) + \\cos^2(\\theta) = 1$ is like a magical rule that always works! It's saying the two important parts of our triangle always add up to make a perfect whole!"
-        }\n        \n        # Find relevant hint\n        for key, hint in eli5_hints.items():\n            if key in concept.lower() or key in specific_question.lower():\n                return hint\n                \n        # Default ELI5 approach\n        return f\"🌟 Let's think about {concept} like building with blocks! What do you think the most important piece is?\"\n    \n    def _generate_different_hint(self, concept: str, previous_hints: list) -> str:\n        \"\"\"\n        Generate a different approach to explain the same concept\n        \"\"\"\n        # Track that we're giving multiple hints for same concept\n        self.session_memory['hints_given_this_concept'] += 1\n        \n        # Different approaches for common concepts\n        different_approaches = {\n            \"sine\": [\n                \"🎡 Think of $\\sin$ like a Ferris wheel! As you go around, $\\sin$ tells you how high you are compared to the center.\",\n                \"🌊 $\\sin$ is like ocean waves! It goes up and down in a smooth pattern between $-1$ and $1$.\",\n                \"👥 In our triangle family, $\\sin$ is the child who always compares the opposite side to the hypotenuse parent!\"\n            ],\n            \"cosine\": [\n                \"🚗 Think of $\\cos$ like driving! It tells you how much you've moved forward compared to the total distance.\",\n                \"🌲 $\\cos$ is like the shadow of a tree! As the sun moves, the shadow length changes based on the angle.\",\n                \"🏠 $\\cos$ is the friendly neighbor who lives next to the angle in our triangle neighborhood!\"\n            ],\n            \"tangent\": [\n                \"🏗️ $\\tan$ is like building a ramp! The steeper the ramp, the bigger the $\\tan$ value.\",\n                \"🎢 Think of $\\tan$ as the slope of a roller coaster! It tells us how steep the ride is.\",\n                \"📐 $\\tan$ is like drawing a line from a corner - it shows the steepness of that line!\"\n            ]\n        }\n        \n        for key, approaches in different_approaches.items():\n            if key in concept.lower():\n                # Return the next approach we haven't used\n                hint_index = min(len(approaches) - 1, self.session_memory['hints_given_this_concept'] - 1)\n                return approaches[hint_index]\n        \n        return f\"🔄 Let's try a completely different way to think about {concept}! What if we imagined it as something you see every day?\"\n    \n    def _provide_guidance_after_hint(self, concept: str, hint_given: str) -> str:\n        \"\"\"\n        Provide additional guidance to help student move toward the answer\n        \"\"\"\n        guidance_templates = [\n            \"💡 Now that you have this hint, try to think: what would be your next step?\",\n            \"🎯 Using what I just explained, can you tell me what you think we should do next?\",\n            \"✨ Great! Now with this new understanding, what question should we ask about our triangle?\",\n            \"🚀 Perfect! Now let's use this idea - what part of the problem can we solve first?\",\n            \"🌟 Wonderful! Now that we understand this concept, how might we apply it to our specific problem?\"\n        ]\n        \n        # Rotate through different guidance approaches\n        guidance_index = self.session_memory['hints_given_this_concept'] % len(guidance_templates)\n        return guidance_templates[guidance_index]
+        }
+        
+        # Find relevant hint
+        for key, hint in eli5_hints.items():
+            if key in concept.lower() or key in specific_question.lower():
+                return hint
+                
+        # Default ELI5 approach
+        return f"🌟 Let's think about {concept} like building with blocks! What do you think the most important piece is?"
+    
+    def _generate_different_hint(self, concept: str, previous_hints: list) -> str:
+        """
+        Generate a different approach to explain the same concept
+        """
+        # Track that we're giving multiple hints for same concept
+        self.session_memory['hints_given_this_concept'] += 1
+        
+        # Different approaches for common concepts
+        different_approaches = {
+            "sine": [
+                "🎡 Think of $\\sin$ like a Ferris wheel! As you go around, $\\sin$ tells you how high you are compared to the center.",
+                "🌊 $\\sin$ is like ocean waves! It goes up and down in a smooth pattern between $-1$ and $1$.",
+                "👥 In our triangle family, $\\sin$ is the child who always compares the opposite side to the hypotenuse parent!"
+            ],
+            "cosine": [
+                "🚗 Think of $\\cos$ like driving! It tells you how much you've moved forward compared to the total distance.",
+                "🌲 $\\cos$ is like the shadow of a tree! As the sun moves, the shadow length changes based on the angle.",
+                "🏠 $\\cos$ is the friendly neighbor who lives next to the angle in our triangle neighborhood!"
+            ],
+            "tangent": [
+                "🏗️ $\\tan$ is like building a ramp! The steeper the ramp, the bigger the $\\tan$ value.",
+                "🎢 Think of $\\tan$ as the slope of a roller coaster! It tells us how steep the ride is.",
+                "📐 $\\tan$ is like drawing a line from a corner - it shows the steepness of that line!"
+            ]
+        }
+        
+        for key, approaches in different_approaches.items():
+            if key in concept.lower():
+                # Return the next approach we haven't used
+                hint_index = min(len(approaches) - 1, self.session_memory['hints_given_this_concept'] - 1)
+                return approaches[hint_index]
+        
+        return f"🔄 Let's try a completely different way to think about {concept}! What if we imagined it as something you see every day?"\n    \n    def _provide_guidance_after_hint(self, concept: str, hint_given: str) -> str:\n        \"\"\"\n        Provide additional guidance to help student move toward the answer\n        \"\"\"\n        guidance_templates = [\n            \"💡 Now that you have this hint, try to think: what would be your next step?\",\n            \"🎯 Using what I just explained, can you tell me what you think we should do next?\",\n            \"✨ Great! Now with this new understanding, what question should we ask about our triangle?\",\n            \"🚀 Perfect! Now let's use this idea - what part of the problem can we solve first?\",\n            \"🌟 Wonderful! Now that we understand this concept, how might we apply it to our specific problem?\"\n        ]\n        \n        # Rotate through different guidance approaches\n        guidance_index = self.session_memory['hints_given_this_concept'] % len(guidance_templates)\n        return guidance_templates[guidance_index]
     
     def _remove_observation_section(self, text: str) -> str:
         """
