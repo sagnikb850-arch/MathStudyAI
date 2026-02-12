@@ -1111,8 +1111,8 @@ def show_group1_learning():
                     st.rerun()
     
     # NEW: Additional Questions Chatbox
-    st.subheader(\"💬 Ask Additional Questions\")
-    st.write(\"Got confused about something? Need extra clarification? Ask me anything about trigonometry concepts!\")
+    st.subheader("💬 Ask Additional Questions")
+    st.write("Got confused about something? Need extra clarification? Ask me anything about trigonometry concepts!")
     
     # Initialize additional chat history
     if 'additional_chat' not in st.session_state:
@@ -1120,7 +1120,7 @@ def show_group1_learning():
     
     # Display additional chat history
     if st.session_state.additional_chat:
-        st.write(\"**Previous Questions:**\")
+        st.write("**Previous Questions:**")
         for msg in st.session_state.additional_chat:
             with st.chat_message(msg['role']):
                 # Extra safety: Remove any OBSERVATION that might have slipped through
@@ -1128,16 +1128,16 @@ def show_group1_learning():
                 if 'OBSERVATION' in content.upper():
                     # Emergency filter
                     import re
-                    lines = [line for line in content.split('\\n') if 'observation' not in line.lower()]
-                    content = '\\n'.join(lines)
-                    content = re.sub(r'(?i)\\*\\*observation:?\\*\\*[^\\n]*(\\n[^\\*]*)*', '', content)
-                    content = re.sub(r'\\n\\s*\\n\\s*\\n+', '\\n\\n', content).strip()
+                    lines = [line for line in content.split('\n') if 'observation' not in line.lower()]
+                    content = '\n'.join(lines)
+                    content = re.sub(r'(?i)\*\*observation:?\*\*[^\n]*(\n[^\*]*)*', '', content)
+                    content = re.sub(r'\n\s*\n\s*\n+', '\n\n', content).strip()
                 st.markdown(content)
     
     # Additional question input
     additional_question = st.chat_input(
-        \"Ask any trigonometry question... (e.g., 'Can you explain sin again?' or 'What's the difference between tan and sin?')\",
-        key=\"additional_question_input\"
+        "Ask any trigonometry question... (e.g., 'Can you explain sin again?' or 'What's the difference between tan and sin?')",
+        key="additional_question_input"
     )
     
     if additional_question:
