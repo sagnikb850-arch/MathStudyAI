@@ -1562,6 +1562,33 @@ def main():
             st.write("Learn: " + ("✅" if st.session_state.learning_done else "⬜"))
         with col3:
             st.write("Final: " + ("✅" if st.session_state.final_assessment_done else "⬜"))
+        
+        # Google Drive Diagnostic
+        st.write("---")
+        with st.expander("🔍 Google Drive Status"):
+            from utils.gdrive_sync import get_gdrive_sync
+            gdrive = get_gdrive_sync()
+            
+            if gdrive.enabled:
+                st.success("✅ Google Drive Sync Enabled")
+                st.caption(f"Folder: {gdrive.folder_id}")
+                
+                if st.button("Test Upload", key="test_gdrive_btn"):
+                    import json
+                    from datetime import datetime
+                    test_data = {"test": "connection", "timestamp": datetime.now().isoformat()}
+                    os.makedirs("data", exist_ok=True)
+                    test_file = "data/test_connection.json"
+                    with open(test_file, 'w') as f:
+                        json.dump(test_data, f)
+                    file_id = gdrive.upload_file(test_file)
+                    if file_id:
+                        st.success("✅ Upload successful!")
+                    else:
+                        st.error("❌ Upload failed - check folder sharing")
+            else:
+                st.warning("⚠️ Google Drive Sync Disabled")
+                st.caption("Check Streamlit secrets configuration")
     
     # Main content
     if st.session_state.current_page == 'home':
