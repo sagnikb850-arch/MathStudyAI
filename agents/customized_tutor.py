@@ -250,6 +250,28 @@ Remember: Your success is measured by student discovery, not by providing answer
         # Streamlit's st.markdown() and st.latex() handle rendering
         return text
     
+    def _remove_observation_section(self, text: str) -> str:
+        """
+        Remove OBSERVATION section from AI response to hide internal reasoning
+        Students should only see THOUGHT and ACTION sections
+        """
+        import re
+        
+        # Pattern to match OBSERVATION section (case-insensitive)
+        # Matches from **OBSERVATION:** to the next ** section or end
+        pattern = r'\*\*OBSERVATION:\*\*.*?(?=\*\*[A-Z]+:|$)'
+        
+        # Remove the OBSERVATION section
+        cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Also remove any standalone "OBSERVATION:" without asterisks
+        cleaned_text = re.sub(r'OBSERVATION:.*?(?=THOUGHT:|ACTION:|$)', '', cleaned_text, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Clean up multiple newlines
+        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+        
+        return cleaned_text.strip()
+    
     def _use_sympy_tool(self, expression: str) -> str:
         """
         Use SymPy tool for symbolic mathematics and convert to LaTeX
@@ -357,20 +379,23 @@ Remember:
             
             response_text = response.content
             
+            # Remove OBSERVATION section before displaying to student
+            filtered_response = self._remove_observation_section(response_text)
+            
             # Store in conversation history
             self.messages.append({"role": "assistant", "content": response_text})
             self.session_memory['conversation_history'].append({
                 "type": "concept_teaching",
                 "problem": problem,
                 "concept": concept,
-                "tutor_response": response_text
+                "tutor_response": filtered_response
             })
             
             return {
                 "success": True,
                 "question_id": question_id,
                 "concept": concept,
-                "explanation": response_text,
+                "explanation": filtered_response,
                 "hint": hint,
                 "react_mode": True
             }
@@ -454,16 +479,19 @@ Remember: DO NOT include OBSERVATION section. Only show THOUGHT and ACTION.
             # Apply SymPy post-processing to ensure LaTeX formatting
             response_text = self._format_with_sympy(response.content)
             
+            # Remove OBSERVATION section before displaying to student
+            filtered_response = self._remove_observation_section(response_text)
+            
             # Store in history
             self.messages.append({"role": "assistant", "content": response_text})
             self.session_memory['conversation_history'].append({
                 "type": "student_question",
                 "question": student_question,
-                "tutor_response": response_text
+                "tutor_response": filtered_response
             })
             
             # Check if student seems to have completed current step
-            if self._detect_step_completion(student_question, response_text):
+            if self._detect_step_completion(student_question, filtered_response):
                 if self.session_memory['current_step']:
                     self.session_memory['completed_steps'].append(self.session_memory['current_step'])
                 
@@ -476,7 +504,7 @@ Remember: DO NOT include OBSERVATION section. Only show THOUGHT and ACTION.
             return {
                 "success": True,
                 "question": student_question,
-                "answer": response_text,
+                "answer": filtered_response,
                 "current_step": self.session_memory.get('current_step'),
                 "progress": f"{len(self.session_memory.get('completed_steps', []))}/{len(self.session_memory.get('problem_steps', []))} steps",
                 "react_mode": True
