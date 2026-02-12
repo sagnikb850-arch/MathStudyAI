@@ -988,6 +988,14 @@ def show_group1_learning():
                                 'content': explanation['explanation']  # Filtered response for student
                             })
                             
+                            # Save chat message to history
+                            storage.save_chat_message(
+                                st.session_state.student_id,
+                                'Group 1',
+                                'assistant',
+                                explanation['explanation']
+                            )
+                            
                             # Save learning progress with FULL response for admin
                             storage.save_learning_progress(
                                 st.session_state.student_id,
@@ -1034,6 +1042,14 @@ def show_group1_learning():
                         'content': user_response
                     })
                     
+                    # Save user message to chat history
+                    storage.save_chat_message(
+                        st.session_state.student_id,
+                        'Group 1',
+                        'user',
+                        user_response
+                    )
+                    
                     # Get tutor's response
                     with st.spinner("AI Tutor is analyzing your response..."):
                         response = st.session_state.tutor.answer_student_question(
@@ -1046,6 +1062,14 @@ def show_group1_learning():
                                 'role': 'assistant',
                                 'content': response['answer']  # Filtered response for student
                             })
+                            
+                            # Save AI response to chat history
+                            storage.save_chat_message(
+                                st.session_state.student_id,
+                                'Group 1',
+                                'assistant',
+                                response['answer']
+                            )
                             
                             # Save interaction with FULL response for admin
                             storage.save_learning_progress(
@@ -1119,6 +1143,14 @@ def show_group2_learning():
             'content': user_input
         })
         
+        # Save user message to chat history
+        storage.save_chat_message(
+            st.session_state.student_id,
+            'Group 2',
+            'user',
+            user_input
+        )
+        
         with st.chat_message("user"):
             st.write(user_input)
         
@@ -1131,6 +1163,14 @@ def show_group2_learning():
                     'role': 'assistant',
                     'content': response['answer']
                 })
+                
+                # Save AI response to chat history
+                storage.save_chat_message(
+                    st.session_state.student_id,
+                    'Group 2',
+                    'assistant',
+                    response['answer']
+                )
                 
                 # Save learning progress WITH RESPONSE for admin review
                 storage.save_learning_progress(
