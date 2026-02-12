@@ -386,3 +386,22 @@ class DataStorage:
         except Exception as e:
             print(f"Error updating final test completion: {e}")
             return False
+    def reset_all_data(self) -> bool:
+        """Admin function to clear all student data and start fresh"""
+        try:
+            # Reset chat history
+            with open(self.chat_history_file, 'w') as f:
+                json.dump({}, f, indent=2)
+            
+            # Reset student tracking
+            with open(self.student_tracking_file, 'w') as f:
+                json.dump({}, f, indent=2)
+            
+            # Delete performance ratings CSV if it exists
+            if os.path.exists('data/performance_ratings.csv'):
+                os.remove('data/performance_ratings.csv')
+            
+            return True
+        except Exception as e:
+            print(f"Error resetting all data: {e}")
+            return False

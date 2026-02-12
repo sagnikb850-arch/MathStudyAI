@@ -179,13 +179,14 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Progress Report", 
         "🏆 Comparison", 
         "📝 Manage Questions", 
         "💡 Practice Questions",
         "💬 Chat History",
-        "👥 Student Management"
+        "👥 Student Management",
+        "🗑️ Reset Data"
     ])
     
     with tab1:
@@ -205,6 +206,9 @@ def show_admin_dashboard():
     
     with tab6:
         show_admin_student_management()
+    
+    with tab7:
+        show_admin_reset_data()
 
 
 def show_admin_progress():
@@ -662,6 +666,72 @@ def show_admin_student_management():
             st.info("No interactions recorded yet")
 
 
+def show_admin_reset_data():
+    """Admin page to reset all data"""
+    st.header("🗑️ Reset All Data")
+    st.warning("⚠️ **DANGER ZONE** ⚠️")
+    st.write("""
+    This action will **permanently delete**:
+    - All student chat history
+    - All student tracking data
+    - All performance ratings and assessment results
+    
+    **This cannot be undone!**
+    """)
+    
+    st.divider()
+    
+    # Get current data count
+    all_tracking = storage.get_all_student_tracking()
+    student_count = len(all_tracking)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📊 Total Students", student_count)
+    with col2:
+        chat_count = 0
+        all_chats = storage.get_all_chat_histories()
+        for student_chats in all_chats.values():
+            chat_count += len(student_chats)
+        st.metric("💬 Total Messages", chat_count)
+    with col3:
+        if os.path.exists('data/performance_ratings.csv'):
+            import pandas as pd
+            perf_df = pd.read_csv('data/performance_ratings.csv')
+            st.metric("📝 Assessment Records", len(perf_df))
+        else:
+            st.metric("📝 Assessment Records", 0)
+    
+    st.divider()
+    
+    # Confirmation step
+    st.subheader("⚠️ Confirmation Required")
+    st.write("To proceed with data reset, please type: **RESET ALL DATA**")
+    
+    confirmation = st.text_input("Type confirmation text:", key="reset_confirmation")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🗑️ RESET ALL DATA", type="primary", use_container_width=True, disabled=(confirmation != "RESET ALL DATA")):
+            if confirmation == "RESET ALL DATA":
+                with st.spinner("Deleting all data..."):
+                    if storage.reset_all_data():
+                        st.success("✅ All data has been successfully deleted!")
+                        st.balloons()
+                        st.info("The system is now clean and ready for new students.")
+                        # Clear the confirmation field by rerunning
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error("❌ Error occurred while resetting data. Please check logs.")
+    
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            st.info("Reset operation cancelled.")
+
+
 # ============================================================================
 # PAGE: Home / Group Selection
 # ============================================================================
@@ -753,7 +823,11 @@ def show_registration():
                 tracking = storage.get_student_tracking(student_id)
                 
                 if tracking:
-                    # Returning student
+                    # Returning student - restore their group from tracking data
+                    saved_group = tracking.get('group')
+                    if saved_group:
+                        st.session_state.group = saved_group
+                    
                     if tracking.get('pre_test_completed', False):
                         # Skip pre-test, go directly to learning
                         st.success("✅ Welcome back! Continuing to tutoring session...")
@@ -773,7 +847,7 @@ def show_registration():
                         storage.record_daily_interaction(student_id)
                         st.rerun()
                     else:
-                        # New student with incomplete pre-test
+                        # Returning student with incomplete pre-test
                         st.session_state.current_page = 'pre_assessment'
                         st.rerun()
                 else:
