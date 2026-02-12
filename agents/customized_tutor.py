@@ -254,24 +254,40 @@ Remember: Your success is measured by student discovery, not by providing answer
         """
         Remove OBSERVATION section from AI response to hide internal reasoning
         Students should only see THOUGHT and ACTION sections
+        
+        Uses multiple aggressive strategies to ensure OBSERVATION is completely removed
         """
         import re
         
-        # Pattern 1: Match **OBSERVATION:** with or without bold on next section
-        # Matches from **OBSERVATION:** to THOUGHT: or ACTION: or ** or end
-        pattern1 = r'\*\*OBSERVATION:\*\*.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION|$))'
+        # Strategy 1: Remove **OBSERVATION:** (bold) until next section or end
+        text = re.sub(
+            r'\*\*OBSERVATION:\*\*[^\n]*\n.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION):|$)',
+            '',
+            text,
+            flags=re.DOTALL | re.IGNORECASE
+        )
         
-        # Pattern 2: Match plain OBSERVATION: without asterisks
-        pattern2 = r'(?<!\*\*)OBSERVATION:.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION|$))'
+        # Strategy 2: Remove OBSERVATION: (no asterisks) until next section or end
+        text = re.sub(
+            r'\bOBSERVATION:[^\n]*\n.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION):|$)',
+            '',
+            text,
+            flags=re.DOTALL | re.IGNORECASE
+        )
         
-        # Apply both patterns
-        cleaned_text = re.sub(pattern1, '', text, flags=re.DOTALL | re.IGNORECASE)
-        cleaned_text = re.sub(pattern2, '', cleaned_text, flags=re.DOTALL | re.IGNORECASE)
+        # Strategy 3: Remove any remaining line that contains "OBSERVATION"
+        text = re.sub(
+            r'^.*\bOBSERVATION\b.*$',
+            '',
+            text,
+            flags=re.MULTILINE | re.IGNORECASE
+        )
         
-        # Clean up multiple newlines
-        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+        # Clean up multiple newlines and whitespace
+        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+        text = re.sub(r'^\s+|\s+$', '', text, flags=re.MULTILINE)
         
-        return cleaned_text.strip()
+        return text.strip()
     
     def _use_sympy_tool(self, expression: str) -> str:
         """
