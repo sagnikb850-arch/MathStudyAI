@@ -472,6 +472,40 @@ def show_admin_full_chat_history():
     st.header("💬 Full Chat History (with OBSERVATION)")
     st.info("This view shows student chat interactions from both groups with complete AI responses including OBSERVATION sections.")
     
+    # Export buttons
+    st.subheader("📊 Export Chat Histories to Excel")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📥 Export Group 1 Chats", use_container_width=True):
+            with st.spinner("Exporting Group 1 chat history..."):
+                success = storage.export_group1_chat_to_excel()
+                if success:
+                    st.success("✅ Group 1 chat history exported to data/group1_chat_history.xlsx")
+                else:
+                    st.error("❌ Failed to export Group 1 chat history")
+    
+    with col2:
+        if st.button("📥 Export Group 2 Chats", use_container_width=True):
+            with st.spinner("Exporting Group 2 chat history..."):
+                success = storage.export_group2_chat_to_excel()
+                if success:
+                    st.success("✅ Group 2 chat history exported to data/group2_chat_history.xlsx")
+                else:
+                    st.error("❌ Failed to export Group 2 chat history")
+    
+    with col3:
+        if st.button("📥 Export Both Groups", use_container_width=True):
+            with st.spinner("Exporting all chat histories..."):
+                success = storage.export_all_chats_to_excel()
+                if success:
+                    st.success("✅ Both group chat histories exported successfully!")
+                    st.info("📁 Files: group1_chat_history.xlsx & group2_chat_history.xlsx")
+                else:
+                    st.error("❌ Failed to export chat histories")
+    
+    st.divider()
+    
     # Load chat history data
     if os.path.exists('data/chat_history.json'):
         with open('data/chat_history.json', 'r', encoding='utf-8') as f:

@@ -409,3 +409,130 @@ class DataStorage:
         except Exception as e:
             print(f"Error resetting all data: {e}")
             return False
+
+    def export_group1_chat_to_excel(self, output_file: str = None) -> bool:
+        """"""
+        Export Group 1 chat history to Excel file
+        Columns: User ID, Date, Concept/Query, Role, Message
+        """"""
+        try:
+            if output_file is None:
+                output_file = os.path.join(self.data_dir, "group1_chat_history.xlsx")
+            
+            # Load chat history
+            if not os.path.exists(self.chat_history_file):
+                print("No chat history found")
+                return False
+            
+            with open(self.chat_history_file, 'r') as f:
+                chat_data = json.load(f)
+            
+            # Load learning progress to get concepts/queries
+            learning_data = {}
+            if os.path.exists(self.learning_history_file):
+                with open(self.learning_history_file, 'r') as f:
+                    learning_data = json.load(f)
+            
+            # Prepare data for DataFrame
+            rows = []
+            for student_id, messages in chat_data.items():
+                for msg in messages:
+                    # Filter for Group 1 messages only
+                    if 'Group 1' in msg.get('group', ''):
+                        # Try to find the concept from learning history
+                        concept = "General Question"
+                        if student_id in learning_data:
+                            for interaction in learning_data.get(student_id, []):
+                                concept = interaction.get('concept', 'General Question')
+                                break  # Use the most recent concept
+                        
+                        rows.append({
+                            'User ID': student_id,
+                            'Date': msg.get('timestamp', ''),
+                            'Concept/Query': concept,
+                            'Role': msg.get('role', '').title(),
+                            'Message': msg.get('message', '')
+                        })
+            
+            if not rows:
+                print("No Group 1 chat messages found")
+                return False
+            
+            # Create DataFrame and export to Excel
+            df = pd.DataFrame(rows)
+            df = df.sort_values(by=['User ID', 'Date'])
+            df.to_excel(output_file, index=False, engine='openpyxl')
+            
+            print(f"Group 1 chat history exported to: {output_file}")
+            return True
+            
+        except Exception as e:
+            print(f"Error exporting Group 1 chat history: {e}")
+            return False
+    
+    def export_group2_chat_to_excel(self, output_file: str = None) -> bool:
+        """"""
+        Export Group 2 chat history to Excel file
+        Columns: User ID, Date, Query, Role, Message
+        """"""
+        try:
+            if output_file is None:
+                output_file = os.path.join(self.data_dir, "group2_chat_history.xlsx")
+            
+            # Load chat history
+            if not os.path.exists(self.chat_history_file):
+                print("No chat history found")
+                return False
+            
+            with open(self.chat_history_file, 'r') as f:
+                chat_data = json.load(f)
+            
+            # Prepare data for DataFrame
+            rows = []
+            for student_id, messages in chat_data.items():
+                for msg in messages:
+                    # Filter for Group 2 messages only
+                    if msg.get('group', '') == 'Group 2':
+                        rows.append({
+                            'User ID': student_id,
+                            'Date': msg.get('timestamp', ''),
+                            'Query': 'Chat Conversation',  # Group 2 is free-form chat
+                            'Role': msg.get('role', '').title(),
+                            'Message': msg.get('message', '')
+                        })
+            
+            if not rows:
+                print("No Group 2 chat messages found")
+                return False
+            
+            # Create DataFrame and export to Excel
+            df = pd.DataFrame(rows)
+            df = df.sort_values(by=['User ID', 'Date'])
+            df.to_excel(output_file, index=False, engine='openpyxl')
+            
+            print(f"Group 2 chat history exported to: {output_file}")
+            return True
+            
+        except Exception as e:
+            print(f"Error exporting Group 2 chat history: {e}")
+            return False
+    
+    def export_all_chats_to_excel(self) -> bool:
+        """"""Export both Group 1 and Group 2 chat histories to separate Excel files""""""
+        try:
+            group1_success = self.export_group1_chat_to_excel()
+            group2_success = self.export_group2_chat_to_excel()
+            
+            if group1_success and group2_success:
+                print("All chat histories exported successfully!")
+                return True
+            elif group1_success or group2_success:
+                print("Some chat histories exported (check logs)")
+                return True
+            else:
+                print("Failed to export chat histories")
+                return False
+                
+        except Exception as e:
+            print(f"Error exporting all chat histories: {e}")
+            return False
