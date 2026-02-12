@@ -124,13 +124,14 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📈 Progress Report",
         "🏆 Comparison",
         "📝 Manage Questions",
         "💡 Practice Questions",
         "💬 Full Chat History (with OBSERVATION)",
-        "📋 Pre-Assessment Results"
+        "📋 Pre-Assessment Results",
+        "📅 Student Interaction Tracking"
     ])
     
     with tab1:
@@ -150,6 +151,9 @@ def show_admin_dashboard():
     
     with tab6:
         show_admin_preassessment_results()
+    
+    with tab7:
+        show_admin_interaction_tracking()
 
 
 def show_admin_progress():
@@ -622,6 +626,111 @@ def show_admin_preassessment_results():
         st.info("No assessment data available. Students need to complete pre-assessments first.")
 
 
+def show_admin_interaction_tracking():
+    """Display student interaction tracking and allow manual final test access"""
+    st.header("📅 Student Interaction Tracking")
+    st.info("Monitor student engagement and manage final test access")
+    
+    # Get all student tracking data
+    all_tracking = storage.get_all_student_tracking()
+    
+    if all_tracking:
+        # Convert to DataFrame for easier display
+        tracking_list = []
+        for student_id, data in all_tracking.items():
+            tracking_list.append({
+                'Student ID': student_id,
+                'Group': data.get('group', 'N/A'),
+                'Pre-Test': '✅' if data.get('pre_test_completed', False) else '❌',
+                'Days Interacted': data.get('days_interacted', 0),
+                'Interaction Dates': len(data.get('interaction_dates', [])),
+                'Final Test Status': '✅ Enabled' if data.get('final_test_enabled', False) else '🔒 Locked',
+                'Final Test Done': '✅' if data.get('final_test_completed', False) else '❌',
+                'Admin Override': '✅' if data.get('admin_override', False) else '❌'
+            })
+        
+        df = pd.DataFrame(tracking_list)
+        
+        # Display summary statistics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Students", len(all_tracking))
+        with col2:
+            completed_pre = sum(1 for d in all_tracking.values() if d.get('pre_test_completed', False))
+            st.metric("Pre-Tests Completed", completed_pre)
+        with col3:
+            eligible_final = sum(1 for d in all_tracking.values() if d.get('final_test_enabled', False))
+            st.metric("Final Test Eligible", eligible_final)
+        with col4:
+            completed_final = sum(1 for d in all_tracking.values() if d.get('final_test_completed', False))
+            st.metric("Final Tests Completed", completed_final)
+        
+        st.divider()
+        
+        # Display detailed table
+        st.subheader("📋 Student Tracking Details")
+        st.dataframe(df, use_container_width=True)
+        
+        st.divider()
+        
+        # Admin Controls for Final Test Access
+        st.subheader("⚙️ Admin Controls: Manually Enable Final Test")
+        st.write("Admins can manually enable the final test for students who haven't met the 3-day requirement.")
+        
+        # Select student to modify
+        student_ids = list(all_tracking.keys())
+        selected_student = st.selectbox("Select Student ID", student_ids)
+        
+        if selected_student:
+            student_data = all_tracking[selected_student]
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"**Group:** {student_data.get('group', 'N/A')}")
+                st.write(f"**Pre-Test Status:** {'Completed' if student_data.get('pre_test_completed', False) else 'Not Completed'}")
+                st.write(f"**Days Interacted:** {student_data.get('days_interacted', 0)}/3")
+            
+            with col2:
+                st.write(f"**Final Test Status:** {'Enabled' if student_data.get('final_test_enabled', False) else 'Locked'}")
+                st.write(f"**Final Test Completed:** {'Yes' if student_data.get('final_test_completed', False) else 'No'}")
+                st.write(f"**Admin Override:** {'Yes' if student_data.get('admin_override', False) else 'No'}")
+            
+            st.divider()
+            
+            # Buttons for manual control
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Enable Final Test (Admin Override)", key=f"enable_{selected_student}", use_container_width=True):
+                    if storage.admin_enable_final_test(selected_student, enabled=True):
+                        st.success(f"Final test enabled for student {selected_student}")
+                        st.rerun()
+                    else:
+                        st.error("Failed to enable final test")
+            
+            with col2:
+                if st.button("🔒 Disable Final Test", key=f"disable_{selected_student}", use_container_width=True):
+                    if storage.admin_enable_final_test(selected_student, enabled=False):
+                        st.success(f"Final test disabled for student {selected_student}")
+                        st.rerun()
+                    else:
+                        st.error("Failed to disable final test")
+            
+            # Show detailed interaction history
+            st.divider()
+            st.subheader(f"📊 Interaction History for {selected_student}")
+            interaction_dates = student_data.get('interaction_dates', [])
+            if interaction_dates:
+                st.write(f"**Total unique days:** {len(interaction_dates)}")
+                st.write("**Dates:**")
+                for date in interaction_dates:
+                    st.write(f"- {date}")
+            else:
+                st.info("No interactions recorded yet")
+    else:
+        st.info("No student tracking data available yet. Students need to register first.")
+
+
+
 # ============================================================================
 # PAGE: Home / Group Selection
 # ============================================================================
@@ -708,7 +817,27 @@ def show_registration():
         if st.button("Register & Continue", use_container_width=True):
             if student_id.strip():
                 st.session_state.student_id = student_id
-                st.session_state.current_page = 'pre_assessment'
+                
+                # Check if returning student
+                tracking = storage.get_student_tracking(student_id)
+                
+                if tracking:
+                    # Returning student - restore their group and check pre-test status
+                    st.session_state.group = tracking.get('group', st.session_state.group)
+                    
+                    if tracking.get('pre_test_completed', False):
+                        # Skip pre-test, go directly to learning
+                        st.info("Welcome back! Continuing your learning session...")
+                        st.session_state.pre_assessment_done = True
+                        st.session_state.current_page = 'learning'
+                    else:
+                        # Pre-test not completed yet
+                        st.session_state.current_page = 'pre_assessment'
+                else:
+                    # New student - initialize tracking
+                    storage.init_student_tracking(student_id, st.session_state.group)
+                    st.session_state.current_page = 'pre_assessment'
+                
                 st.rerun()
             else:
                 st.error("Please enter a valid Student ID")
@@ -783,6 +912,10 @@ def show_pre_assessment():
                 # Store in session
                 st.session_state.pre_assessment_analysis = analysis['analysis']
                 st.session_state.pre_assessment_done = True
+                
+                # Update student tracking - mark pre-test as completed
+                storage.update_pre_test_completion(st.session_state.student_id)
+                
                 st.session_state.current_page = 'learning'
                 
                 # Show confirmation without revealing score for Group 1
@@ -891,6 +1024,9 @@ def show_group1_learning():
                 )
                 
                 if user_response:
+                    # Record daily interaction for tracking
+                    storage.record_daily_interaction(st.session_state.student_id)
+                    
                     # Add user message to chat
                     st.session_state.concept_chats[concept_key].append({
                         'role': 'user',
@@ -927,10 +1063,21 @@ def show_group1_learning():
     
     st.divider()
     
-    if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
-        st.session_state.learning_done = True
-        st.session_state.current_page = 'final_assessment'
-        st.rerun()
+    # Check final test eligibility
+    tracking = storage.get_student_tracking(st.session_state.student_id)
+    days_interacted = tracking.get('days_interacted', 0)
+    final_test_enabled = tracking.get('final_test_enabled', False)
+    
+    if final_test_enabled:
+        if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
+            st.session_state.learning_done = True
+            st.session_state.current_page = 'final_assessment'
+            st.rerun()
+    else:
+        st.info(f"📅 **Final Test Requirement:** You need to interact with the learning system for 3 days to unlock the final test.\n\n" + 
+                f"**Progress:** {days_interacted} out of 3 days completed.\n\n" +
+                f"Come back on different days to continue learning!")
+        st.button("Final Assessment (Locked)", disabled=True, use_container_width=True)
 
 
 def show_group2_learning():
@@ -962,6 +1109,9 @@ def show_group2_learning():
     user_input = st.chat_input("Ask a question about trigonometry...")
     
     if user_input:
+        # Record daily interaction for tracking
+        storage.record_daily_interaction(st.session_state.student_id)
+        
         # Add user message
         st.session_state.chat_history.append({
             'role': 'user',
@@ -981,12 +1131,14 @@ def show_group2_learning():
                     'content': response['answer']
                 })
                 
-                # Save learning progress
+                # Save learning progress WITH RESPONSE for admin review
                 storage.save_learning_progress(
                     st.session_state.student_id,
                     {
-                        'question': user_input,
-                        'answered_at': datetime.now().isoformat()
+                        'group': 'Group 2',
+                        'student_question': user_input,
+                        'ai_response': response['answer'],
+                        'timestamp': datetime.now().isoformat()
                     }
                 )
                 
@@ -997,10 +1149,21 @@ def show_group2_learning():
     
     st.divider()
     
-    if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
-        st.session_state.learning_done = True
-        st.session_state.current_page = 'final_assessment'
-        st.rerun()
+    # Check final test eligibility
+    tracking = storage.get_student_tracking(st.session_state.student_id)
+    days_interacted = tracking.get('days_interacted', 0)
+    final_test_enabled = tracking.get('final_test_enabled', False)
+    
+    if final_test_enabled:
+        if st.button("Finish Learning & Go to Final Assessment", use_container_width=True):
+            st.session_state.learning_done = True
+            st.session_state.current_page = 'final_assessment'
+            st.rerun()
+    else:
+        st.info(f"📅 **Final Test Requirement:** You need to interact with the learning system for 3 days to unlock the final test.\n\n" + 
+                f"**Progress:** {days_interacted} out of 3 days completed.\n\n" +
+                f"Come back on different days to continue learning!")
+        st.button("Final Assessment (Locked)", disabled=True, use_container_width=True)
 
 
 # ============================================================================
@@ -1060,6 +1223,10 @@ def show_final_assessment():
                 # Store in session
                 st.session_state.final_assessment_analysis = analysis['analysis']
                 st.session_state.final_assessment_done = True
+                
+                # Update student tracking - mark final test as completed
+                storage.update_final_test_completion(st.session_state.student_id)
+                
                 st.session_state.current_page = 'results'
                 st.rerun()
             else:
