@@ -26,6 +26,8 @@ class DataStorage:
         self.performance_file = os.path.join(data_dir, "performance_ratings.csv")
         self.learning_history_file = os.path.join(data_dir, "learning_history.json")
         self.comparison_file = os.path.join(data_dir, "comparison_results.csv")
+        self.chat_history_file = os.path.join(data_dir, "chat_history.json")
+        self.student_tracking_file = os.path.join(data_dir, "student_tracking.json")
         
         # Initialize files if they don't exist
         self._initialize_files()
@@ -57,7 +59,8 @@ class DataStorage:
                     df.to_csv(file, index=False)
         
         # JSON files
-        for file in [self.student_progress_file, self.learning_history_file]:
+        for file in [self.student_progress_file, self.learning_history_file, 
+                     self.chat_history_file, self.student_tracking_file]:
             if not os.path.exists(file):
                 with open(file, 'w') as f:
                     json.dump({}, f)
@@ -212,4 +215,174 @@ class DataStorage:
         
         except Exception as e:
             print(f"Error calculating comparison: {e}")
+            return {}    
+    # ==================== NEW FEATURES ====================
+    
+    def save_chat_message(self, student_id: str, group: str, role: str, message: str) -> bool:
+        """Save a chat message to history"""
+        try:
+            with open(self.chat_history_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id not in data:
+                data[student_id] = []
+            
+            data[student_id].append({
+                'timestamp': datetime.now().isoformat(),
+                'group': group,
+                'role': role,  # 'user' or 'assistant'
+                'message': message
+            })
+            
+            with open(self.chat_history_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"Error saving chat message: {e}")
+            return False
+    
+    def get_chat_history(self, student_id: str) -> List[Dict]:
+        """Get chat history for a student"""
+        try:
+            with open(self.chat_history_file, 'r') as f:
+                data = json.load(f)
+            return data.get(student_id, [])
+        except Exception as e:
+            print(f"Error getting chat history: {e}")
+            return []
+    
+    def get_all_chat_histories(self) -> Dict[str, List[Dict]]:
+        """Get all chat histories (for admin)"""
+        try:
+            with open(self.chat_history_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error getting all chat histories: {e}")
             return {}
+    
+    def init_student_tracking(self, student_id: str, group: str) -> bool:
+        """Initialize tracking for a new student"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id not in data:
+                data[student_id] = {
+                    'group': group,
+                    'pre_test_completed': False,
+                    'pre_test_date': None,
+                    'interaction_dates': [],  # List of dates student interacted
+                    'days_interacted': 0,
+                    'final_test_enabled': False,
+                    'final_test_completed': False,
+                    'final_test_date': None,
+                    'admin_override': False,  # Admin can manually enable final test
+                    'created_at': datetime.now().isoformat()
+                }
+                
+                with open(self.student_tracking_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"Error initializing student tracking: {e}")
+            return False
+    
+    def update_pre_test_completion(self, student_id: str) -> bool:
+        """Mark pre-test as completed"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id in data:
+                data[student_id]['pre_test_completed'] = True
+                data[student_id]['pre_test_date'] = datetime.now().isoformat()
+                
+                with open(self.student_tracking_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error updating pre-test completion: {e}")
+            return False
+    
+    def record_daily_interaction(self, student_id: str) -> bool:
+        """Record student interaction for today"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id in data:
+                today = datetime.now().date().isoformat()
+                
+                if today not in data[student_id]['interaction_dates']:
+                    data[student_id]['interaction_dates'].append(today)
+                    data[student_id]['days_interacted'] = len(data[student_id]['interaction_dates'])
+                    
+                    # Auto-enable final test after 3 days
+                    if data[student_id]['days_interacted'] >= 3 and not data[student_id]['final_test_completed']:
+                        data[student_id]['final_test_enabled'] = True
+                    
+                    with open(self.student_tracking_file, 'w') as f:
+                        json.dump(data, f, indent=2)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error recording daily interaction: {e}")
+            return False
+    
+    def get_student_tracking(self, student_id: str) -> Dict:
+        """Get tracking data for a student"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            return data.get(student_id, {})
+        except Exception as e:
+            print(f"Error getting student tracking: {e}")
+            return {}
+    
+    def get_all_student_tracking(self) -> Dict:
+        """Get all student tracking data (for admin)"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error getting all student tracking: {e}")
+            return {}
+    
+    def admin_enable_final_test(self, student_id: str, enabled: bool = True) -> bool:
+        """Admin manually enable/disable final test for a student"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id in data:
+                data[student_id]['final_test_enabled'] = enabled
+                data[student_id]['admin_override'] = True
+                
+                with open(self.student_tracking_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error admin enabling final test: {e}")
+            return False
+    
+    def update_final_test_completion(self, student_id: str) -> bool:
+        """Mark final test as completed"""
+        try:
+            with open(self.student_tracking_file, 'r') as f:
+                data = json.load(f)
+            
+            if student_id in data:
+                data[student_id]['final_test_completed'] = True
+                data[student_id]['final_test_date'] = datetime.now().isoformat()
+                
+                with open(self.student_tracking_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+                return True
+            return False
+        except Exception as e:
+            print(f"Error updating final test completion: {e}")
+            return False
