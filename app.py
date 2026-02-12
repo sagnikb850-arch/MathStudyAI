@@ -315,13 +315,19 @@ def show_admin_manage_questions():
         questions_data = json.load(f)
     
     if question_type == "Pre-Assessment":
-        questions = questions_data['pre_assessment']
+        # Pre-assessment has questions for both groups
+        questions_group1 = questions_data.get('pre_assessment_group1', [])
+        questions_group2 = questions_data.get('pre_assessment_group2', [])
+        questions = questions_group1 + questions_group2
         key = 'pre_assessment'
     elif question_type == "Learning Questions":
-        questions = questions_data['learning_questions']
+        questions = questions_data.get('learning_questions', [])
         key = 'learning_questions'
     else:
-        questions = questions_data['final_assessment']
+        # Final assessment has questions for both groups
+        final_group1 = questions_data.get('final_assessment_group1', [])
+        final_group2 = questions_data.get('final_assessment_group2', [])
+        questions = final_group1 + final_group2
         key = 'final_assessment'
     
     st.subheader(f"Current {question_type} Questions ({len(questions)} total)")
@@ -753,7 +759,18 @@ def show_group1_learning():
             # Display chat history for this concept
             for msg in st.session_state.concept_chats[concept_key]:
                 with st.chat_message(msg['role']):
-                    st.markdown(msg['content'])
+                    # Extra safety: Remove any OBSERVATION that might have slipped through
+                    content = msg['content']
+                    if 'OBSERVATION' in content.upper():
+                        # Emergency filter
+                        import re
+                        # Remove any line containing OBSERVATION
+                        lines = [line for line in content.split('\n') if 'observation' not in line.lower()]
+                        content = '\n'.join(lines)
+                        # Remove OBSERVATION sections
+                        content = re.sub(r'(?i)\*\*observation:?\*\*[^\n]*(\n[^\*]*)*', '', content)
+                        content = re.sub(r'\n\s*\n\s*\n+', '\n\n', content).strip()
+                    st.markdown(content)
             
             # Chat input for this concept
             if len(st.session_state.concept_chats[concept_key]) > 0:

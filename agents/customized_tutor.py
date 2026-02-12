@@ -251,17 +251,15 @@ Remember: Your success is measured by student discovery, not by providing answer
     
     def _remove_observation_section(self, text: str) -> str:
         """
-        Remove OBSERVATION section from AI response
+        Remove OBSERVATION section from AI response - ULTRA AGGRESSIVE
         Students should only see THOUGHT and ACTION sections
-        AI uses OBSERVATION internally for reasoning, but it's not displayed
         """
         import re
         
-        # Find first occurrence of THOUGHT or ACTION and start from there
-        thought_match = re.search(r'(?:\*\*)?THOUGHT:', text, re.IGNORECASE)
-        action_match = re.search(r'(?:\*\*)?ACTION:', text, re.IGNORECASE)
+        # Method 1: Find THOUGHT or ACTION and keep from there onwards
+        thought_match = re.search(r'\*\*THOUGHT:\*\*', text, re.IGNORECASE)
+        action_match = re.search(r'\*\*ACTION:\*\*', text, re.IGNORECASE)
         
-        # Find which comes first
         start_pos = None
         if thought_match and action_match:
             start_pos = min(thought_match.start(), action_match.start())
@@ -270,16 +268,48 @@ Remember: Your success is measured by student discovery, not by providing answer
         elif action_match:
             start_pos = action_match.start()
         
-        # If we found THOUGHT or ACTION, keep only from that point onwards
+        # Keep only from THOUGHT/ACTION onwards
         if start_pos is not None:
             text = text[start_pos:]
         
-        # Remove any remaining OBSERVATION lines
+        # Method 2: Remove any line containing OBSERVATION (case insensitive)
+        lines = text.split('\n')
+        filtered_lines = []
+        skip_until_next_section = False
+        
+        for line in lines:
+            # Check if this line starts a new section
+            if re.match(r'\*\*(?:THOUGHT|ACTION):', line, re.IGNORECASE):
+                skip_until_next_section = False
+                filtered_lines.append(line)
+            # Check if line contains OBSERVATION
+            elif 'observation' in line.lower():
+                skip_until_next_section = True
+                continue
+            # Skip lines if we're in OBSERVATION section
+            elif skip_until_next_section:
+                # Check if we've reached next section
+                if line.strip() and (line.startswith('**') or 'THOUGHT' in line.upper() or 'ACTION' in line.upper()):
+                    skip_until_next_section = False
+                    filtered_lines.append(line)
+                else:
+                    continue
+            else:
+                filtered_lines.append(line)
+        
+        text = '\n'.join(filtered_lines)
+        
+        # Method 3: Final regex cleanup for any remaining OBSERVATION
         text = re.sub(
-            r'^.*?OBSERVATION.*?$',
+            r'(?i)\*\*observation:?\*\*[^\n]*',
+            '',
+            text
+        )
+        text = re.sub(
+            r'(?i)^observation:?[^\n]*$',
             '',
             text,
-            flags=re.MULTILINE | re.IGNORECASE
+            flags=re.MULTILINE
         )
         
         # Clean up excessive whitespace
