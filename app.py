@@ -602,7 +602,8 @@ def show_admin_preassessment_results():
                             with col1:
                                 st.metric("Score", f"{perf_row['score_percentage']:.1f}%")
                             with col2:
-                                st.metric("Correct Answers", f"{perf_row['correct_answers']}/{perf_row['total_questions']}")
+                                # Pre-assessment has 5 questions
+                                st.metric("Correct Answers", f"{perf_row['correct_answers']}/5")
                             with col3:
                                 st.metric("Difficulty", perf_row['difficulty_level'])
                         else:
