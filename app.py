@@ -466,57 +466,81 @@ def show_admin_practice_questions():
 def show_admin_full_chat_history():
     """Admin view of full chat responses including OBSERVATION sections"""
     st.header("💬 Full Chat History (with OBSERVATION)")
-    st.info("This view shows the complete AI responses including OBSERVATION sections that students don't see.")
+    st.info("This view shows student chat interactions from both groups with complete AI responses including OBSERVATION sections.")
     
-    # Load learning progress data
-    if os.path.exists('data/learning_progress.json'):
-        with open('data/learning_progress.json', 'r', encoding='utf-8') as f:
-            progress_data = json.load(f)
+    # Load chat history data
+    if os.path.exists('data/chat_history.json'):
+        with open('data/chat_history.json', 'r', encoding='utf-8') as f:
+            chat_data = json.load(f)
         
-        if progress_data:
+        if chat_data:
             # Get list of students
-            students = list(progress_data.keys())
+            students = list(chat_data.keys())
             selected_student = st.selectbox("Select Student ID", students)
             
             if selected_student:
                 st.subheader(f"Chat History for: {selected_student}")
                 
-                student_progress = progress_data[selected_student]
+                student_messages = chat_data[selected_student]
                 
-                if student_progress:
-                    # Display each interaction
-                    for idx, interaction in enumerate(student_progress):
-                        with st.expander(f"Interaction {idx + 1} - {interaction.get('concept', 'N/A')} - {interaction.get('timestamp', interaction.get('accessed_at', 'N/A'))}"):
-                            # Show concept and question ID
-                            st.markdown(f"**Concept:** {interaction.get('concept', 'N/A')}")
-                            st.markdown(f"**Question ID:** {interaction.get('question_id', 'N/A')}")
+                if student_messages:
+                    # Group messages by timestamp/session for better display
+                    st.write(f"**Total Messages:** {len(student_messages)}")
+                    
+                    # Display each message
+                    for idx, message in enumerate(student_messages):
+                        timestamp = message.get('timestamp', 'Unknown time')
+                        group = message.get('group', 'Unknown group')
+                        role = message.get('role', 'unknown')
+                        content = message.get('message', 'No content')
+                        
+                        with st.expander(f"Message {idx + 1} - {role.title()} - {group} - {timestamp}"):
+                            st.markdown(f"**Group:** {group}")
+                            st.markdown(f"**Role:** {role.title()}")
+                            st.markdown(f"**Timestamp:** {timestamp}")
                             
-                            # Show student response if available
-                            if 'student_response' in interaction:
-                                st.markdown("### 👤 Student Response:")
-                                st.info(interaction['student_response'])
+                            st.divider()
                             
-                            # Show filtered response (what student saw)
-                            if 'tutor_response_filtered' in interaction:
-                                st.markdown("### 🎓 Student View (THOUGHT + ACTION only):")
-                                st.success(interaction['tutor_response_filtered'])
-                            
-                            # Show full response with OBSERVATION (admin only)
-                            if 'tutor_response_full' in interaction:
-                                st.markdown("### 🔍 Admin View (Full Response with OBSERVATION):")
-                                st.warning(interaction['tutor_response_full'])
-                                
-                                # Highlight if OBSERVATION is present
-                                if 'OBSERVATION' in interaction['tutor_response_full'].upper():
-                                    st.caption("✅ Contains OBSERVATION section (hidden from student)")
+                            if role == 'user':
+                                st.markdown("### 👤 Student Message:")
+                                st.info(content)
+                            else:
+                                st.markdown("### 🤖 AI Response:")
+                                if group == 'Group 1':
+                                    st.success(f"**AI Tutor Response:** {content}")
+                                    # Note: For Group 1, this is the filtered response (no OBSERVATION)
+                                    st.caption("📝 Note: This is the filtered response shown to student (OBSERVATION sections removed)")
                                 else:
-                                    st.caption("ℹ️ No OBSERVATION section in this response")
+                                    st.success(f"**ChatGPT Response:** {content}")
+                    
+                    # Also load learning progress for Group 1 OBSERVATION data
+                    if os.path.exists('data/learning_progress.json'):
+                        with open('data/learning_progress.json', 'r', encoding='utf-8') as f:
+                            progress_data = json.load(f)
+                        
+                        if selected_student in progress_data:
+                            st.divider()
+                            st.subheader("🔍 Group 1 Full Responses (with OBSERVATION)")
+                            st.info("These are the complete AI Tutor responses including OBSERVATION sections that students don't see.")
+                            
+                            student_progress = progress_data[selected_student]
+                            for idx, interaction in enumerate(student_progress):
+                                if 'tutor_response_full' in interaction:
+                                    with st.expander(f"Full Response {idx + 1} - {interaction.get('concept', 'N/A')} - {interaction.get('timestamp', 'N/A')}"):
+                                        st.markdown("### 🔍 Admin View (Full Response with OBSERVATION):")
+                                        st.warning(interaction['tutor_response_full'])
+                                        
+                                        # Highlight if OBSERVATION is present
+                                        if 'OBSERVATION' in interaction['tutor_response_full'].upper():
+                                            st.caption("✅ Contains OBSERVATION section (hidden from student)")
+                                        else:
+                                            st.caption("ℹ️ No OBSERVATION section in this response")
                 else:
-                    st.info("No interactions recorded for this student yet.")
+                    st.info("No chat messages recorded for this student yet.")
         else:
             st.info("No student chat history available yet.")
     else:
-        st.info("No learning progress data found. Students need to start learning first.")
+        st.info("No chat history data found. Students need to start chatting first.")
 
 
 def show_admin_preassessment_results():
