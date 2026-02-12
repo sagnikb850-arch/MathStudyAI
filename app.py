@@ -366,16 +366,19 @@ def show_admin_manage_questions():
     
     question_type = st.selectbox(
         "Select Question Set",
-        ["Pre-Assessment", "Learning Questions", "Final Assessment"]
+        ["Pre-Assessment Group 1", "Pre-Assessment Group 2", "Learning Questions", "Final Assessment"]
     )
     
     # Load current questions
     with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
         questions_data = json.load(f)
     
-    if question_type == "Pre-Assessment":
-        questions = questions_data['pre_assessment']
-        key = 'pre_assessment'
+    if question_type == "Pre-Assessment Group 1":
+        questions = questions_data['pre_assessment_group1']
+        key = 'pre_assessment_group1'
+    elif question_type == "Pre-Assessment Group 2":
+        questions = questions_data['pre_assessment_group2']
+        key = 'pre_assessment_group2'
     elif question_type == "Learning Questions":
         questions = questions_data['learning_questions']
         key = 'learning_questions'
