@@ -406,7 +406,23 @@ Remember: Your success is measured by student discovery, not by providing answer
                 hint_index = min(len(approaches) - 1, self.session_memory['hints_given_this_concept'] - 1)
                 return approaches[hint_index]
         
-        return f"🔄 Let's try a completely different way to think about {concept}! What if we imagined it as something you see every day?"\n    \n    def _provide_guidance_after_hint(self, concept: str, hint_given: str) -> str:\n        \"\"\"\n        Provide additional guidance to help student move toward the answer\n        \"\"\"\n        guidance_templates = [\n            \"💡 Now that you have this hint, try to think: what would be your next step?\",\n            \"🎯 Using what I just explained, can you tell me what you think we should do next?\",\n            \"✨ Great! Now with this new understanding, what question should we ask about our triangle?\",\n            \"🚀 Perfect! Now let's use this idea - what part of the problem can we solve first?\",\n            \"🌟 Wonderful! Now that we understand this concept, how might we apply it to our specific problem?\"\n        ]\n        \n        # Rotate through different guidance approaches\n        guidance_index = self.session_memory['hints_given_this_concept'] % len(guidance_templates)\n        return guidance_templates[guidance_index]
+        return f"🔄 Let's try a completely different way to think about {concept}! What if we imagined it as something you see every day?"
+    
+    def _provide_guidance_after_hint(self, concept: str, hint_given: str) -> str:
+        """
+        Provide additional guidance to help student move toward the answer
+        """
+        guidance_templates = [
+            "💡 Now that you have this hint, try to think: what would be your next step?",
+            "🎯 Using what I just explained, can you tell me what you think we should do next?",
+            "✨ Great! Now with this new understanding, what question should we ask about our triangle?",
+            "🚀 Perfect! Now let's use this idea - what part of the problem can we solve first?",
+            "🌟 Wonderful! Now that we understand this concept, how might we apply it to our specific problem?"
+        ]
+        
+        # Rotate through different guidance approaches
+        guidance_index = self.session_memory['hints_given_this_concept'] % len(guidance_templates)
+        return guidance_templates[guidance_index]
     
     def _remove_observation_section(self, text: str) -> str:
         """
@@ -521,7 +537,7 @@ Remember: Your success is measured by student discovery, not by providing answer
             self.student_memory['total_hints_given'] += 1
             
             # Build context-aware prompt with enhanced guidance
-            context = f\"\"\"
+            context = f"""
 📚 **Current Learning Context:**
 - Concept: {concept}
 - Student Level: {student_level}
@@ -540,8 +556,8 @@ Remember: Your success is measured by student discovery, not by providing answer
 1. **THOUGHT:** [Your analysis]
 2. **ACTION:** [Your guiding question]
 
-❌ DO NOT write \"OBSERVATION\" anywhere in your response!
-❌ DO NOT write \"**OBSERVATION:**\"!
+❌ DO NOT write "OBSERVATION" anywhere in your response!
+❌ DO NOT write "**OBSERVATION:**"!
 
 ✨ **Special Instructions for This Student:**
 - This student has had {self.session_memory['struggle_count_this_session']} struggles this session
@@ -556,35 +572,7 @@ Format:
 
 **ACTION:** [Ask ONE ELI5-style Socratic question with an analogy. Include an emoji. Do not reveal the answer!]
 
-After your ACTION, add: \"Try to answer that, and I'll guide you to the next step! 🌟\"
-
-Remember: 
-- DO NOT solve the problem for them
-- DO NOT give the final answer  
-- Present ONE thought and ONE action per turn
-- DO NOT write the word \"OBSERVATION\"
-- ONLY write THOUGHT and ACTION sections
-- Use simple, friendly language like talking to a curious child
-- Include analogies and emojis to make it fun
-
-**Begin your enhanced tutoring response now:**
-\"\"\"
-
-🎯 **Your Task:**
-
-🚨 CRITICAL: Your response MUST have ONLY two sections:
-1. **THOUGHT:** [Your analysis]
-2. **ACTION:** [Your guiding question]
-
-❌ DO NOT write "OBSERVATION" anywhere in your response!
-❌ DO NOT write "**OBSERVATION:**"!
-
-Format:
-**THOUGHT:** [Analyze the problem and what the student needs to discover. Do not reveal the answer.]
-
-**ACTION:** [Ask ONE Socratic question about the FIRST step. Do not reveal the answer!]
-
-STOP HERE and wait for student response.
+After your ACTION, add: "Try to answer that, and I'll guide you to the next step! 🌟"
 
 Remember: 
 - DO NOT solve the problem for them
@@ -592,9 +580,12 @@ Remember:
 - Present ONE thought and ONE action per turn
 - DO NOT write the word "OBSERVATION"
 - ONLY write THOUGHT and ACTION sections
+- Use simple, friendly language like talking to a curious child
+- Include analogies and emojis to make it fun
 
-**Begin your tutoring response now:**
+**Begin your enhanced tutoring response now:**
 """
+
             
             self.messages.append({"role": "user", "content": context})
             
@@ -647,10 +638,10 @@ Remember:
             
             # Add student question to memory
             self.session_memory['student_attempts'].append({
-                \"question\": student_question,
-                \"response\": student_previous_response,
-                \"timestamp\": \"current\",
-                \"struggling\": is_struggling
+                "question": student_question,
+                "response": student_previous_response,
+                "timestamp": "current",
+                "struggling": is_struggling
             })
             
             # Determine hint strategy based on struggle
@@ -666,7 +657,7 @@ Remember:
                 )
             
             # Build enhanced ReAct prompt with full context
-            memory_context = f\"\"\"
+            memory_context = f"""
 🧠 **Enhanced Student Memory:**
 - Weak Areas: {', '.join(self.student_memory['weak_areas'])}
 - Known Misconceptions: {', '.join(self.student_memory['misconceptions']) if self.student_memory['misconceptions'] else 'None yet'}
@@ -687,8 +678,8 @@ Remember:
 {self._format_recent_history(3)}
 
 🎓 **Student's Current Question/Response:**
-\"{student_question}\"
-{f'Previous Response: \"{student_previous_response}\"' if student_previous_response else ''}
+"{student_question}"
+{f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
 
 🎯 **Enhanced Response Requirements:**
 
@@ -696,8 +687,8 @@ Remember:
 1. **THOUGHT:**
 2. **ACTION:**
 
-❌ FORBIDDEN: Do NOT write \"OBSERVATION\" anywhere!
-❌ FORBIDDEN: Do NOT write \"**OBSERVATION:**\"!
+❌ FORBIDDEN: Do NOT write "OBSERVATION" anywhere!
+❌ FORBIDDEN: Do NOT write "**OBSERVATION:**"!
 
 ✨ **Special Guidance Based on Student State:**
 {'🆘 STRUGGLE DETECTED! Use extra encouragement, simpler language, and different analogies.' if is_struggling else '🌟 Student seems engaged! Build on their understanding.'}
@@ -712,7 +703,7 @@ Format:
 
 **ACTION:** [ONE guiding hint with emoji and analogy. Include guidance toward next step.]
 
-After your ACTION, add this guidance: \"{self._provide_guidance_after_hint(self.session_memory.get('current_problem', 'concept'), 'current_hint')}\"
+After your ACTION, add this guidance: "{self._provide_guidance_after_hint(self.session_memory.get('current_problem', 'concept'), 'current_hint')}"
 
 Remember your core principles:
 - NEVER REVEAL THE ANSWER directly
@@ -721,56 +712,18 @@ Remember your core principles:
 - Celebrate any progress or understanding shown
 - Guide step-by-step toward discovery
 
-**Your Response:**\"\"\"
-- Steps in Problem: {' → '.join(self.session_memory.get('problem_steps', []))}
-- Current Step: {self.session_memory.get('current_step', 'Not set')}
-- Completed Steps: {' ✓ '.join(self.session_memory.get('completed_steps', [])) if self.session_memory.get('completed_steps') else 'None yet'}
-
-💬 **Recent Conversation:**
-{self._format_recent_history(3)}
-
-🎓 **Student's Current Question/Response:**
-"{student_question}"
-{f'Previous Response: "{student_previous_response}"' if student_previous_response else ''}
-
-🎯 **Your Response Requirements:**
-
-🚨 CRITICAL: Your response MUST contain ONLY these two sections:
-1. **THOUGHT:**
-2. **ACTION:**
-
-❌ FORBIDDEN: Do NOT write "OBSERVATION" anywhere!
-❌ FORBIDDEN: Do NOT write "**OBSERVATION:**"!
-
-Format:
-
-**THOUGHT:** [Evaluate their response and decide next step]
-- Think about: Is their reasoning correct? What did they understand? What gaps remain?
-- If CORRECT: Start with "✓ Excellent! That's correct! [specific praise]"
-- If INCORRECT: Start with "I see your thinking. Let's explore this..."
-- If PARTIAL: Start with "✓ You're on the right track! [acknowledge correct part]"
-- Decide what hint or question comes next
-- DO NOT reveal the answer
-
-**ACTION:** [Ask ONE focused Socratic question]
-- If correct: Praise and guide to next step with a question
-- If partially correct: Acknowledge what's right, then ask about the gap
-- If incorrect: Ask a simpler question to help them discover their error
-- If stuck: Provide a small hint through a question
-- Never give away the answer
-
-STOP HERE and wait for their response.
-
-❌ DO NOT write the word "OBSERVATION"
-✅ START with "**THOUGHT:**" immediately
-
-**Your Response:**
-"""
+**Your Response:**"""
             
-            self.messages.append({"role": "user", "content": memory_context})
+            # Get AI response with enhanced memory context
+            response = self.llm.invoke([
+                SystemMessage(content=self.SYSTEM_PROMPT),
+                HumanMessage(content=memory_context)
+            ])
             
-            # Get AI response with ReAct reasoning
-            response = self.llm.invoke(self.messages[-5:] if len(self.messages) > 5 else self.messages)
+            response_text = response.content
+            
+            # Remove OBSERVATION section before displaying to student
+            filtered_response = self._remove_observation_section(response_text)
             
             response_text = response.content
             
@@ -833,10 +786,114 @@ STOP HERE and wait for their response.
         return any(praise in tutor_response.lower() for praise in praise_indicators)
     
     
-    def answer_additional_question(self, question: str, context: str = \"\") -> Dict[str, Any]:
-        \"\"\"\n        Handle additional questions from the separate chatbox\n        Provides helpful explanations while maintaining ReAct format\n        \"\"\"\n        try:\n            # Track this as an additional question\n            self.session_memory['student_attempts'].append({\n                \"question\": question,\n                \"type\": \"additional_question\",\n                \"context\": context,\n                \"timestamp\": \"current\"\n            })\n            \n            # Detect struggling\n            is_struggling = self._detect_struggle(question)\n            \n            # Build context for additional question\n            additional_context = f\"\"\"\n🤔 **Additional Question Support:**\nThe student is asking an additional question while learning: \"{question}\"\n\n🧠 **Current Learning Context:**\n- Main Problem: {self.session_memory.get('current_problem', 'None')}\n- Student Mood: {self.session_memory['last_student_mood']}\n- Struggle Count: {self.session_memory['struggle_count_this_session']}\n- Success Count: {self.session_memory['success_count_this_session']}\n- Is Currently Struggling: {is_struggling}\n\n🎯 **Your Task for Additional Question:**\n\n🚨 CRITICAL: Your response MUST have ONLY two sections:\n1. **THOUGHT:** [Your analysis]\n2. **ACTION:** [Your helpful guidance]\n\n❌ DO NOT write \"OBSERVATION\" anywhere!\n\n✨ **Guidelines for Additional Questions:**\n- Provide helpful guidance without giving away main problem answers\n- Use ELI5 explanations with analogies and emojis\n- Connect their question to the main concept if relevant\n- Be extra encouraging if they're struggling with main problem\n- Keep them engaged and curious about learning\n\nFormat:\n**THOUGHT:** [Analyze their additional question and how it relates to their learning.]\n\n**ACTION:** [Provide a helpful, encouraging response with analogy and emoji. Don't solve their main problem for them!]\n\nAdd this at the end: \"Does this help with your understanding? Feel free to ask more questions! 💝\"\n\n**Your Response:**\"\"\"\n            \n            # Get AI response\n            response = self.llm.invoke([\n                SystemMessage(content=self.SYSTEM_PROMPT),\n                HumanMessage(content=additional_context)\n            ])\n            \n            response_text = response.content\n            filtered_response = self._remove_observation_section(response_text)\n            \n            # Store in message history\n            self.messages.append({\"role\": \"assistant\", \"content\": response_text})\n            self.session_memory['conversation_history'].append({\n                \"type\": \"additional_question\",\n                \"question\": question,\n                \"tutor_response\": filtered_response\n            })\n            \n            return {\n                \"success\": True,\n                \"question\": question,\n                \"answer\": filtered_response,\n                \"full_response\": response_text,\n                \"type\": \"additional_question\",\n                \"student_mood\": self.session_memory['last_student_mood']\n            }\n            \n        except Exception as e:\n            print(f\"Error in answer_additional_question: {e}\")\n            return {\n                \"success\": False,\n                \"error\": str(e),\n                \"question\": question\n            }
+    def answer_additional_question(self, question: str, context: str = "") -> Dict[str, Any]:
+        """
+        Handle additional questions from the separate chatbox
+        Provides helpful explanations while maintaining ReAct format
+        """
+        try:
+            # Track this as an additional question
+            self.session_memory['student_attempts'].append({
+                "question": question,
+                "type": "additional_question",
+                "context": context,
+                "timestamp": "current"
+            })
+            
+            # Detect struggling
+            is_struggling = self._detect_struggle(question)
+            
+            # Build context for additional question
+            additional_context = f"""
+🤔 **Additional Question Support:**
+The student is asking an additional question while learning: "{question}"
+
+🧠 **Current Learning Context:**
+- Main Problem: {self.session_memory.get('current_problem', 'None')}
+- Student Mood: {self.session_memory['last_student_mood']}
+- Struggle Count: {self.session_memory['struggle_count_this_session']}
+- Success Count: {self.session_memory['success_count_this_session']}
+- Is Currently Struggling: {is_struggling}
+
+🎯 **Your Task for Additional Question:**
+
+🚨 CRITICAL: Your response MUST have ONLY two sections:
+1. **THOUGHT:** [Your analysis]
+2. **ACTION:** [Your helpful guidance]
+
+❌ DO NOT write "OBSERVATION" anywhere!
+
+✨ **Guidelines for Additional Questions:**
+- Provide helpful guidance without giving away main problem answers
+- Use ELI5 explanations with analogies and emojis
+- Connect their question to the main concept if relevant
+- Be extra encouraging if they're struggling with main problem
+- Keep them engaged and curious about learning
+
+Format:
+**THOUGHT:** [Analyze their additional question and how it relates to their learning.]
+
+**ACTION:** [Provide a helpful, encouraging response with analogy and emoji. Don't solve their main problem for them!]
+
+Add this at the end: "Does this help with your understanding? Feel free to ask more questions! 💝"
+
+**Your Response:**"""
+            
+            # Get AI response
+            response = self.llm.invoke([
+                SystemMessage(content=self.SYSTEM_PROMPT),
+                HumanMessage(content=additional_context)
+            ])
+            
+            response_text = response.content
+            filtered_response = self._remove_observation_section(response_text)
+            
+            # Store in message history
+            self.messages.append({"role": "assistant", "content": response_text})
+            self.session_memory['conversation_history'].append({
+                "type": "additional_question",
+                "question": question,
+                "tutor_response": filtered_response
+            })
+            
+            return {
+                "success": True,
+                "question": question,
+                "answer": filtered_response,
+                "full_response": response_text,
+                "type": "additional_question",
+                "student_mood": self.session_memory['last_student_mood']
+            }
+            
+        except Exception as e:
+            print(f"Error in answer_additional_question: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "question": question
+            }
     
     def get_student_progress_summary(self) -> Dict[str, Any]:
-        \"\"\"\n        Get a summary of student's learning progress and state\n        \"\"\"\n        return {\n            \"total_concepts_attempted\": len(self.session_memory.get('concepts_attempted', [])),\n            \"struggle_count\": self.session_memory['struggle_count_this_session'],\n            \"success_count\": self.session_memory['success_count_this_session'],\n            \"current_mood\": self.session_memory['last_student_mood'],\n            \"hint_level\": self.session_memory['current_hint_level'],\n            \"total_hints_given\": self.student_memory['total_hints_given'],\n            \"completed_steps\": len(self.session_memory.get('completed_steps', [])),\n            \"total_steps\": len(self.session_memory.get('problem_steps', [])),\n            \"concepts_mastered\": self.student_memory.get('concepts_mastered', []),\n            \"learning_insights\": {\n                \"is_engaged\": self.session_memory['success_count_this_session'] > self.session_memory['struggle_count_this_session'],\n                \"needs_encouragement\": self.session_memory['struggle_count_this_session'] > 2,\n                \"ready_for_next_level\": len(self.student_memory.get('concepts_mastered', [])) > 3\n            }\n        }\n\n    def get_chat_history(self) -> List[Dict[str, str]]:
+        """
+        Get a summary of student's learning progress and state
+        """
+        return {
+            "total_concepts_attempted": len(self.session_memory.get('concepts_attempted', [])),
+            "struggle_count": self.session_memory['struggle_count_this_session'],
+            "success_count": self.session_memory['success_count_this_session'],
+            "current_mood": self.session_memory['last_student_mood'],
+            "hint_level": self.session_memory['current_hint_level'],
+            "total_hints_given": self.student_memory['total_hints_given'],
+            "completed_steps": len(self.session_memory.get('completed_steps', [])),
+            "total_steps": len(self.session_memory.get('problem_steps', [])),
+            "concepts_mastered": self.student_memory.get('concepts_mastered', []),
+            "learning_insights": {
+                "is_engaged": self.session_memory['success_count_this_session'] > self.session_memory['struggle_count_this_session'],
+                "needs_encouragement": self.session_memory['struggle_count_this_session'] > 2,
+                "ready_for_next_level": len(self.student_memory.get('concepts_mastered', [])) > 3
+            }
+        }
+
+    def get_chat_history(self) -> List[Dict[str, str]]:
         """Get conversation history"""
         return self.session_memory.get('conversation_history', [])
