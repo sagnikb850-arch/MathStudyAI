@@ -410,11 +410,12 @@ class DataStorage:
             print(f"Error resetting all data: {e}")
             return False
 
+
     def export_group1_chat_to_excel(self, output_file: str = None) -> bool:
-        """"""
+        """
         Export Group 1 chat history to Excel file
         Columns: User ID, Date, Concept/Query, Role, Message
-        """"""
+        """
         try:
             if output_file is None:
                 output_file = os.path.join(self.data_dir, "group1_chat_history.xlsx")
@@ -465,16 +466,16 @@ class DataStorage:
             
             print(f"Group 1 chat history exported to: {output_file}")
             return True
-            
+        
         except Exception as e:
             print(f"Error exporting Group 1 chat history: {e}")
             return False
-    
+
     def export_group2_chat_to_excel(self, output_file: str = None) -> bool:
-        """"""
+        """
         Export Group 2 chat history to Excel file
         Columns: User ID, Date, Query, Role, Message
-        """"""
+        """
         try:
             if output_file is None:
                 output_file = os.path.join(self.data_dir, "group2_chat_history.xlsx")
@@ -512,13 +513,13 @@ class DataStorage:
             
             print(f"Group 2 chat history exported to: {output_file}")
             return True
-            
+        
         except Exception as e:
             print(f"Error exporting Group 2 chat history: {e}")
             return False
-    
+
     def export_all_chats_to_excel(self) -> bool:
-        """"""Export both Group 1 and Group 2 chat histories to separate Excel files""""""
+        """Export both Group 1 and Group 2 chat histories to separate Excel files"""
         try:
             group1_success = self.export_group1_chat_to_excel()
             group2_success = self.export_group2_chat_to_excel()
@@ -532,7 +533,7 @@ class DataStorage:
             else:
                 print("Failed to export chat histories")
                 return False
-                
+        
         except Exception as e:
             print(f"Error exporting all chat histories: {e}")
             return False
