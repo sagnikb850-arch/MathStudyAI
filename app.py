@@ -258,7 +258,7 @@ def show_admin_comparison():
             if comparison:
                 # Display winner
                 st.success(f"🏆 Winner: **{comparison['winner']}**")
-                st.markdown(comparison['analysis'])
+                render_latex_content(comparison['analysis'])
                 
                 st.divider()
                 
@@ -956,12 +956,12 @@ def show_results():
         with col1:
             st.write("**Pre-Assessment Feedback**")
             with st.container(border=True):
-                st.markdown(pre_analysis.get('detailed_feedback', 'No feedback available'))
+                render_latex_content(pre_analysis.get('detailed_feedback', 'No feedback available'))
         
         with col2:
             st.write("**Final Assessment Feedback**")
             with st.container(border=True):
-                st.markdown(final_analysis.get('detailed_feedback', 'No feedback available'))
+                render_latex_content(final_analysis.get('detailed_feedback', 'No feedback available'))
         
         st.divider()
     
@@ -987,7 +987,7 @@ def show_results():
         
         st.divider()
         st.success(f"**Winner**: {comparison.get('winner', 'TBD')}")
-        st.info(comparison.get('analysis', 'Analysis pending'))
+        render_latex_content(comparison.get('analysis', 'Analysis pending'))
     
     st.divider()
     
