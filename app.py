@@ -838,10 +838,8 @@ def show_registration():
                             st.session_state.learning_done = True
                             st.session_state.current_page = 'final_assessment'
                         else:
-                            if st.session_state.group == '1':
-                                st.session_state.current_page = 'learning_group1'
-                            else:
-                                st.session_state.current_page = 'learning_group2'
+                            # Route to learning page (show_learning will handle group routing)
+                            st.session_state.current_page = 'learning'
                         
                         # Record daily interaction
                         storage.record_daily_interaction(student_id)
