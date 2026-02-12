@@ -257,15 +257,16 @@ Remember: Your success is measured by student discovery, not by providing answer
         """
         import re
         
-        # Pattern to match OBSERVATION section (case-insensitive)
-        # Matches from **OBSERVATION:** to the next ** section or end
-        pattern = r'\*\*OBSERVATION:\*\*.*?(?=\*\*[A-Z]+:|$)'
+        # Pattern 1: Match **OBSERVATION:** with or without bold on next section
+        # Matches from **OBSERVATION:** to THOUGHT: or ACTION: or ** or end
+        pattern1 = r'\*\*OBSERVATION:\*\*.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION|$))'
         
-        # Remove the OBSERVATION section
-        cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL | re.IGNORECASE)
+        # Pattern 2: Match plain OBSERVATION: without asterisks
+        pattern2 = r'(?<!\*\*)OBSERVATION:.*?(?=\n\s*(?:\*\*)?(?:THOUGHT|ACTION|$))'
         
-        # Also remove any standalone "OBSERVATION:" without asterisks
-        cleaned_text = re.sub(r'OBSERVATION:.*?(?=THOUGHT:|ACTION:|$)', '', cleaned_text, flags=re.DOTALL | re.IGNORECASE)
+        # Apply both patterns
+        cleaned_text = re.sub(pattern1, '', text, flags=re.DOTALL | re.IGNORECASE)
+        cleaned_text = re.sub(pattern2, '', cleaned_text, flags=re.DOTALL | re.IGNORECASE)
         
         # Clean up multiple newlines
         cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
