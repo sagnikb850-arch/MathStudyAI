@@ -1159,10 +1159,10 @@ def show_group1_learning():
         )
         
         # Get tutor's response to additional question
-        with st.spinner(\"AI Tutor is thinking about your additional question...\"):
+        with st.spinner("AI Tutor is thinking about your additional question..."):
             additional_response = st.session_state.tutor.answer_additional_question(
                 additional_question,
-                context=f\"Student is learning: {', '.join([c for c in st.session_state.concept_chats.keys()])}\"
+                context=f"Student is learning: {', '.join([c for c in st.session_state.concept_chats.keys()])}"
             )
             
             if additional_response['success']:
@@ -1192,7 +1192,7 @@ def show_group1_learning():
                     }
                 )
             else:
-                st.error(f\"Sorry, I had trouble with that question: {additional_response.get('error', 'Unknown error')}\")
+                st.error(f"Sorry, I had trouble with that question: {additional_response.get('error', 'Unknown error')}")
         
         st.rerun()
     
@@ -1200,29 +1200,29 @@ def show_group1_learning():
     if hasattr(st.session_state.tutor, 'get_student_progress_summary'):
         progress = st.session_state.tutor.get_student_progress_summary()
         
-        with st.expander(\"📊 Your Learning Progress\", expanded=False):
+        with st.expander("📊 Your Learning Progress", expanded=False):
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric(\"Concepts Explored\", progress['total_concepts_attempted'])
-                st.metric(\"Learning Mood\", progress['current_mood'].title())
+                st.metric("Concepts Explored", progress['total_concepts_attempted'])
+                st.metric("Learning Mood", progress['current_mood'].title())
                 
             with col2:
-                st.metric(\"Successes\", progress['success_count'])
-                st.metric(\"Hints Given\", progress['total_hints_given'])
+                st.metric("Successes", progress['success_count'])
+                st.metric("Hints Given", progress['total_hints_given'])
                 
             with col3:
-                st.metric(\"Steps Completed\", f\"{progress['completed_steps']}/{progress['total_steps']}\")
+                st.metric("Steps Completed", f"{progress['completed_steps']}/{progress['total_steps']}")
                 
                 if progress['learning_insights']['is_engaged']:
-                    st.success(\"🌟 You're doing great!\")
+                    st.success("🌟 You're doing great!")
                 elif progress['learning_insights']['needs_encouragement']:
-                    st.info(\"💪 Keep going! You're learning!\")
+                    st.info("💪 Keep going! You're learning!")
                     
             if progress['concepts_mastered']:
-                st.write(\"**Concepts You've Mastered:**\")
+                st.write("**Concepts You've Mastered:**")
                 for concept in progress['concepts_mastered']:
-                    st.write(f\"✅ {concept}\")
+                    st.write(f"✅ {concept}")
     
     st.divider()
     
