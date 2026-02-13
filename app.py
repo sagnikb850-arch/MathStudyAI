@@ -128,14 +128,15 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+   tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Progress Report",
         "🏆 Comparison",
         "📝 Manage Questions",
         "💡 Practice Questions",
         "💬 Full Chat History (with OBSERVATION)",
         "📋 Pre-Assessment Results",
-        "📅 Student Interaction Tracking"
+        "📅 Student Interaction Tracking",
+        "📥 Export Data"
     ])
     
     with tab1:
@@ -158,6 +159,9 @@ def show_admin_dashboard():
     
     with tab7:
         show_admin_interaction_tracking()
+    
+    with tab8:
+        show_admin_export_data()
 
 
 def show_admin_progress():
@@ -792,6 +796,71 @@ def show_admin_interaction_tracking():
     else:
         st.info("No student tracking data available yet. Students need to register first.")
 
+
+def show_admin_export_data():
+    """Export all student data as downloadable files"""
+    st.header("📥 Export Student Data")
+    st.write("Download all chat history, assessments, and student data files.")
+    
+    st.info("ℹ️ **Note:** Google Drive sync with service accounts doesn't work with personal My Drive folders. Use these download buttons to backup your data instead.")
+    
+    # List all available data files
+    data_files = {
+        "Chat History (JSON)": "data/chat_history.json",
+        "Group 1 Chat History (CSV)": "data/group1_chat_history.csv",
+        "Group 2 Chat History (CSV)": "data/group2_chat_history.csv",
+        "Learning History (JSON)": "data/learning_history.json",
+        "Student Progress (JSON)": "data/student_progress.json",
+        "Student Tracking (JSON)": "data/student_tracking.json",
+        "Assessments (CSV)": "data/assessments.csv",
+        "Performance Ratings (CSV)": "data/performance_ratings.csv",
+        "Comparison Results (CSV)": "data/comparison_results.csv"
+    }
+    
+    st.subheader("📂 Individual File Downloads")
+    
+    # Create download buttons for each file
+    for file_name, file_path in data_files.items():
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                st.download_button(
+                    label=f"⬇️ Download {file_name}",
+                    data=f.read(),
+                    file_name=os.path.basename(file_path),
+                    mime="application/octet-stream",
+                    use_container_width=True
+                )
+        else:
+            st.caption(f"⚠️ {file_name} - Not available yet")
+    
+    st.divider()
+    
+    # Download all as ZIP
+    st.subheader("📦 Download All Data as ZIP")
+    if st.button("📦 Create ZIP Archive", use_container_width=True):
+        import zipfile
+        from io import BytesIO
+        from datetime import datetime
+        
+        # Create ZIP in memory
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for file_name, file_path in data_files.items():
+                if os.path.exists(file_path):
+                    zip_file.write(file_path, os.path.basename(file_path))
+        
+        # Prepare download
+        zip_buffer.seek(0)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        st.download_button(
+            label="⬇️ Download ZIP Archive",
+            data=zip_buffer.getvalue(),
+            file_name=f"mathstudyai_data_{timestamp}.zip",
+            mime="application/zip",
+            use_container_width=True
+        )
+        st.success("✅ ZIP archive created! Click the button above to download.")
 
 
 # ============================================================================
@@ -1565,87 +1634,21 @@ def main():
         
         # Google Drive Diagnostic
         st.write("---")
-        with st.expander("🔍 Google Drive Status"):
-            from utils.gdrive_sync import get_gdrive_sync
-            gdrive = get_gdrive_sync()
+        with st.expander("ℹ️ Data Storage Info"):
+            st.warning("⚠️ **Google Drive Limitation**")
+            st.write("Service accounts cannot upload to personal My Drive folders.")
+            st.write("**Instead:** Use the **Export Data** tab in the Admin Dashboard to download all your data files.")
+            st.write("**What's available:**")
+            st.write("- Chat history (JSON & CSV)")
+            st.write("- Assessments and performance data")
+            st.write("- Student progress tracking")
+            st.write("- Download individual files or all as ZIP")
             
-            if gdrive.enabled:
-                st.success("✅ Google Drive Sync Enabled")
-                st.caption(f"Folder: {gdrive.folder_id}")
-                
-                if st.button("Test Upload", key="test_gdrive_btn"):
-                    import json
-                    from datetime import datetime
-                    import io
-                    import sys
-                    
-                    # Capture print output
-                    captured_output = io.StringIO()
-                    old_stdout = sys.stdout
-                    sys.stdout = captured_output
-                    
-                    try:
-                        # Create test file
-                        test_data = {"test": "connection", "timestamp": datetime.now().isoformat()}
-                        os.makedirs("data", exist_ok=True)
-                        test_file = "data/test_connection.json"
-                        with open(test_file, 'w') as f:
-                            json.dump(test_data, f)
-                        
-                        # Test folder access first
-                        st.info("Testing folder access...")
-                        try:
-                            folder_test = gdrive.service.files().get(
-                                fileId=gdrive.folder_id,
-                                fields='id,name,capabilities'
-                            ).execute()
-                            st.write(f"📁 Folder found: {folder_test.get('name')}")
-                            caps = folder_test.get('capabilities', {})
-                            if caps.get('canAddChildren'):
-                                st.success("✅ Can write to folder")
-                            else:
-                                st.error("❌ No write permission - folder not shared correctly")
-                                sys.stdout = old_stdout
-                                st.stop()
-                        except Exception as e:
-                            st.error(f"❌ Cannot access folder: {str(e)}")
-                            st.write("**Possible issues:**")
-                            st.write("- Folder ID is incorrect")
-                            st.write("- Folder not shared with service account")
-                            sys.stdout = old_stdout
-                            st.stop()
-                        
-                        # Upload test file
-                        st.info("Uploading test file...")
-                        file_id = gdrive.upload_file(test_file)
-                        
-                        # Restore stdout and show captured logs
-                        sys.stdout = old_stdout
-                        logs = captured_output.getvalue()
-                        
-                        if logs:
-                            with st.expander("📋 Debug Logs"):
-                                st.code(logs)
-                        
-                        if file_id:
-                            st.success("✅ Upload successful!")
-                            st.write(f"File ID: `{file_id}`")
-                            st.write(f"Check your Drive folder for `test_connection.json`")
-                        else:
-                            st.error("❌ Upload failed")
-                            st.write("Check the debug logs above for details")
-                            
-                    except Exception as e:
-                        sys.stdout = old_stdout
-                        st.error(f"❌ Test failed: {str(e)}")
-                        st.code(str(e))
-                        logs = captured_output.getvalue()
-                        if logs:
-                            with st.expander("📋 Debug Logs"):
-                                st.code(logs)
-            else:
-                st.warning("⚠️ Google Drive Sync Disabled")
-                st.caption("Check Streamlit secrets configuration")
+            if st.session_state.is_admin:
+                if st.button("📥 Go to Export Data", key="goto_export"):
+                    st.session_state.admin_page = 'export'
+                    st.session_state.current_page = 'admin_dashboard'
+                    st.rerun()
     
     # Main content
     if st.session_state.current_page == 'home':
