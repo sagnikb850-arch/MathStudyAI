@@ -63,11 +63,14 @@ class GoogleDriveSync:
             File ID if successful, None otherwise
         """
         if not self.enabled:
+            print("⚠️ Google Drive sync not enabled")
             return None
         
         try:
             file_name = os.path.basename(file_path)
             folder_id = folder_id or self.FOLDER_ID
+            
+            print(f"📤 Attempting to upload {file_name} to folder {folder_id}")
             
             # Check if file already exists in folder
             existing_file_id = self._find_file_in_folder(file_name, folder_id)
@@ -77,6 +80,7 @@ class GoogleDriveSync:
             
             if existing_file_id:
                 # Update existing file
+                print(f"🔄 Updating existing file {file_name} (ID: {existing_file_id})")
                 media = MediaFileUpload(file_path, mimetype=mime_type, resumable=True)
                 updated_file = self.service.files().update(
                     fileId=existing_file_id,
@@ -86,6 +90,7 @@ class GoogleDriveSync:
                 return updated_file.get('id')
             else:
                 # Create new file
+                print(f"📝 Creating new file {file_name}")
                 file_metadata = {
                     'name': file_name,
                     'parents': [folder_id]
@@ -100,10 +105,13 @@ class GoogleDriveSync:
                 return created_file.get('id')
                 
         except HttpError as error:
-            print(f"❌ Google Drive upload error: {error}")
+            print(f"❌ Google Drive HTTP error: {error}")
+            print(f"❌ Error details: {error.resp.status} - {error.error_details}")
             return None
         except Exception as e:
-            print(f"❌ Unexpected error during upload: {e}")
+            print(f"❌ Unexpected error during upload: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _find_file_in_folder(self, file_name: str, folder_id: str) -> Optional[str]:

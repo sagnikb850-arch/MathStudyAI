@@ -1576,6 +1576,13 @@ def main():
                 if st.button("Test Upload", key="test_gdrive_btn"):
                     import json
                     from datetime import datetime
+                    import io
+                    import sys
+                    
+                    # Capture print output
+                    captured_output = io.StringIO()
+                    old_stdout = sys.stdout
+                    sys.stdout = captured_output
                     
                     try:
                         # Create test file
@@ -1598,27 +1605,44 @@ def main():
                                 st.success("✅ Can write to folder")
                             else:
                                 st.error("❌ No write permission - folder not shared correctly")
+                                sys.stdout = old_stdout
                                 st.stop()
                         except Exception as e:
                             st.error(f"❌ Cannot access folder: {str(e)}")
                             st.write("**Possible issues:**")
                             st.write("- Folder ID is incorrect")
                             st.write("- Folder not shared with service account")
+                            sys.stdout = old_stdout
                             st.stop()
                         
                         # Upload test file
                         st.info("Uploading test file...")
                         file_id = gdrive.upload_file(test_file)
                         
+                        # Restore stdout and show captured logs
+                        sys.stdout = old_stdout
+                        logs = captured_output.getvalue()
+                        
+                        if logs:
+                            with st.expander("📋 Debug Logs"):
+                                st.code(logs)
+                        
                         if file_id:
                             st.success("✅ Upload successful!")
+                            st.write(f"File ID: `{file_id}`")
                             st.write(f"Check your Drive folder for `test_connection.json`")
                         else:
-                            st.error("❌ Upload failed - check Streamlit logs for details")
+                            st.error("❌ Upload failed")
+                            st.write("Check the debug logs above for details")
                             
                     except Exception as e:
+                        sys.stdout = old_stdout
                         st.error(f"❌ Test failed: {str(e)}")
                         st.code(str(e))
+                        logs = captured_output.getvalue()
+                        if logs:
+                            with st.expander("📋 Debug Logs"):
+                                st.code(logs)
             else:
                 st.warning("⚠️ Google Drive Sync Disabled")
                 st.caption("Check Streamlit secrets configuration")
