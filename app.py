@@ -30,6 +30,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Performance optimization: Limit chat history in session
+MAX_CHAT_HISTORY_IN_SESSION = 50  # Keep only last 50 messages in memory
+
 # Initialize session state
 if 'student_id' not in st.session_state:
     st.session_state.student_id = None
@@ -48,16 +51,24 @@ if 'is_admin' not in st.session_state:
 if 'admin_page' not in st.session_state:
     st.session_state.admin_page = 'dashboard'
 
-# Load questions
-with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
-    questions_data = json.load(f)
+# Load questions (cached to avoid repeated file I/O)
+@st.cache_data
+def load_questions():
+    with open('data/trigonometry_questions.json', 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+questions_data = load_questions()
 
 # Questions will be loaded based on group
 learning_questions = questions_data['learning_questions']
 final_questions = questions_data['final_assessment']
 
-# Initialize storage
-storage = DataStorage('data')
+# Initialize storage (singleton pattern)
+@st.cache_resource
+def get_data_storage():
+    return DataStorage('data')
+
+storage = get_data_storage()
 
 # Initialize agents (lazy load)
 @st.cache_resource
@@ -120,8 +131,60 @@ def show_admin_dashboard():
     """Main admin dashboard with tabs"""
     st.title("📊 Admin Dashboard")
     
-    # Logout button in sidebar
+    # Automatic backup status in sidebar
     with st.sidebar:
+        from utils.auto_backup import get_auto_backup
+        backup = get_auto_backup()
+        
+        st.write("---")
+        st.subheader("🔄 Auto-Backup")
+        
+        # Enable/Disable auto-backup
+        if '​auto_backup_enabled' not in st.session_state:
+            st.session_state.auto_backup_enabled = False
+        
+        auto_backup_toggle = st.toggle(
+            "Enable Auto-Backup (Every 10 min)",
+            value=st.session_state.auto_backup_enabled,
+            key="backup_toggle"
+        )
+        
+        if auto_backup_toggle != st.session_state.auto_backup_enabled:
+            st.session_state.auto_backup_enabled = auto_backup_toggle
+            if auto_backup_toggle:
+                backup.enable()
+                st.success("✅ Auto-backup enabled!")
+            else:
+                backup.disable()
+                st.info("⏸️ Auto-backup paused")
+            st.rerun()
+        
+        # Show backup status
+        if st.session_state.auto_backup_enabled:
+            seconds_until = backup.get_time_until_next_backup()
+            minutes = seconds_until // 60
+            seconds = seconds_until % 60
+            
+            st.metric("Next Backup In", f"{minutes}m {seconds}s")
+            st.caption(f"Last: {backup.get_last_backup_time()}")
+            
+            # Check if backup is due
+            if backup.should_backup():
+                with st.spinner("Creating backup..."):
+                    zip_data, filename = backup.create_backup_zip()
+                    if zip_data:
+                        st.session_state.latest_backup = (zip_data, filename)
+                        st.success("✅ Backup ready!")
+                        st.download_button(
+                            label="⬇️ Download Backup",
+                            data=zip_data,
+                            file_name=filename,
+                            mime="application/zip",
+                            use_container_width=True
+                        )
+        else:
+            st.info("Auto-backup is disabled")
+        
         st.write("---")
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.is_admin = False
@@ -822,14 +885,21 @@ def show_admin_export_data():
     # Create download buttons for each file
     for file_name, file_path in data_files.items():
         if os.path.exists(file_path):
-            with open(file_path, 'rb') as f:
-                st.download_button(
-                    label=f"⬇️ Download {file_name}",
-                    data=f.read(),
-                    file_name=os.path.basename(file_path),
-                    mime="application/octet-stream",
-                    use_container_width=True
-                )
+            try:
+                with open(file_path, 'rb') as f:
+                    file_data = f.read()
+                    if len(file_data) > 0:  # Only show download if file has content
+                        st.download_button(
+                            label=f"⬇️ Download {file_name}",
+                            data=file_data,
+                            file_name=os.path.basename(file_path),
+                            mime="application/octet-stream",
+                            use_container_width=True
+                        )
+                    else:
+                        st.caption(f"⚠️ {file_name} - File is empty")
+            except Exception as e:
+                st.caption(f"⚠️ {file_name} - Error reading file")
         else:
             st.caption(f"⚠️ {file_name} - Not available yet")
     
@@ -838,29 +908,42 @@ def show_admin_export_data():
     # Download all as ZIP
     st.subheader("📦 Download All Data as ZIP")
     if st.button("📦 Create ZIP Archive", use_container_width=True):
-        import zipfile
-        from io import BytesIO
-        from datetime import datetime
-        
-        # Create ZIP in memory
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for file_name, file_path in data_files.items():
-                if os.path.exists(file_path):
-                    zip_file.write(file_path, os.path.basename(file_path))
-        
-        # Prepare download
-        zip_buffer.seek(0)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        st.download_button(
-            label="⬇️ Download ZIP Archive",
-            data=zip_buffer.getvalue(),
-            file_name=f"mathstudyai_data_{timestamp}.zip",
-            mime="application/zip",
-            use_container_width=True
-        )
-        st.success("✅ ZIP archive created! Click the button above to download.")
+        try:
+            import zipfile
+            from io import BytesIO
+            from datetime import datetime
+            
+            # Create ZIP in memory
+            zip_buffer = BytesIO()
+            files_added = 0
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for file_name, file_path in data_files.items():
+                    if os.path.exists(file_path):
+                        try:
+                            zip_file.write(file_path, os.path.basename(file_path))
+                            files_added += 1
+                        except Exception as e:
+                            st.warning(f"Could not add {file_name}: {str(e)}")
+            
+            if files_added > 0:
+                # Prepare download
+                zip_buffer.seek(0)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                st.download_button(
+                    label="⬇️ Download ZIP Archive",
+                    data=zip_buffer.getvalue(),
+                    file_name=f"mathstudyai_data_{timestamp}.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+                st.success(f"✅ ZIP archive created with {files_added} file(s)! Click the button above to download.")
+            else:
+                st.warning("⚠️ No data files available to create ZIP archive.")
+                
+        except Exception as e:
+            st.error(f"❌ Error creating ZIP archive: {str(e)}")
 
 
 # ============================================================================
