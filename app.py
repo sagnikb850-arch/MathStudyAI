@@ -131,59 +131,37 @@ def show_admin_dashboard():
     """Main admin dashboard with tabs"""
     st.title("📊 Admin Dashboard")
     
-    # Automatic backup status in sidebar
+    # Manual backup in sidebar
     with st.sidebar:
         from utils.auto_backup import get_auto_backup
         backup = get_auto_backup()
         
         st.write("---")
-        st.subheader("🔄 Auto-Backup")
+        st.subheader("💾 Data Backup")
         
-        # Enable/Disable auto-backup
-        if '​auto_backup_enabled' not in st.session_state:
-            st.session_state.auto_backup_enabled = False
+        # Manual backup button
+        if st.button("📥 Create Backup Now", use_container_width=True):
+            with st.spinner("Creating backup..."):
+                zip_data, filename = backup.create_backup_zip()
+                if zip_data:
+                    st.session_state.latest_backup = (zip_data, filename)
+                    st.success("✅ Backup ready!")
         
-        auto_backup_toggle = st.toggle(
-            "Enable Auto-Backup (Every 10 min)",
-            value=st.session_state.auto_backup_enabled,
-            key="backup_toggle"
-        )
+        # Show download button if backup exists
+        if 'latest_backup' in st.session_state:
+            zip_data, filename = st.session_state.latest_backup
+            st.download_button(
+                label="⬇️ Download Latest Backup",
+                data=zip_data,
+                file_name=filename,
+                mime="application/zip",
+                use_container_width=True
+            )
+            if st.button("🗑️ Clear", key="clear_backup"):
+                del st.session_state.latest_backup
+                st.rerun()
         
-        if auto_backup_toggle != st.session_state.auto_backup_enabled:
-            st.session_state.auto_backup_enabled = auto_backup_toggle
-            if auto_backup_toggle:
-                backup.enable()
-                st.success("✅ Auto-backup enabled!")
-            else:
-                backup.disable()
-                st.info("⏸️ Auto-backup paused")
-            st.rerun()
-        
-        # Show backup status
-        if st.session_state.auto_backup_enabled:
-            seconds_until = backup.get_time_until_next_backup()
-            minutes = seconds_until // 60
-            seconds = seconds_until % 60
-            
-            st.metric("Next Backup In", f"{minutes}m {seconds}s")
-            st.caption(f"Last: {backup.get_last_backup_time()}")
-            
-            # Check if backup is due
-            if backup.should_backup():
-                with st.spinner("Creating backup..."):
-                    zip_data, filename = backup.create_backup_zip()
-                    if zip_data:
-                        st.session_state.latest_backup = (zip_data, filename)
-                        st.success("✅ Backup ready!")
-                        st.download_button(
-                            label="⬇️ Download Backup",
-                            data=zip_data,
-                            file_name=filename,
-                            mime="application/zip",
-                            use_container_width=True
-                        )
-        else:
-            st.info("Auto-backup is disabled")
+        st.caption("💡 Click 'Create Backup Now' every 10-15 minutes during study sessions")
         
         st.write("---")
         if st.button("🚪 Logout", use_container_width=True):
