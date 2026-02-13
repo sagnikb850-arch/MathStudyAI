@@ -37,7 +37,7 @@ class GoogleDriveSync:
                 credentials_dict = dict(st.secrets['google_drive'])
                 credentials = service_account.Credentials.from_service_account_info(
                     credentials_dict,
-                    scopes=['https://www.googleapis.com/auth/drive.file']
+                    scopes=['https://www.googleapis.com/auth/drive']
                 )
                 
                 self.service = build('drive', 'v3', credentials=credentials)
