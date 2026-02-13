@@ -128,7 +128,7 @@ def show_admin_dashboard():
             st.session_state.current_page = 'home'
             st.rerun()
     
-   tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Progress Report",
         "🏆 Comparison",
         "📝 Manage Questions",
