@@ -1576,16 +1576,49 @@ def main():
                 if st.button("Test Upload", key="test_gdrive_btn"):
                     import json
                     from datetime import datetime
-                    test_data = {"test": "connection", "timestamp": datetime.now().isoformat()}
-                    os.makedirs("data", exist_ok=True)
-                    test_file = "data/test_connection.json"
-                    with open(test_file, 'w') as f:
-                        json.dump(test_data, f)
-                    file_id = gdrive.upload_file(test_file)
-                    if file_id:
-                        st.success("✅ Upload successful!")
-                    else:
-                        st.error("❌ Upload failed - check folder sharing")
+                    
+                    try:
+                        # Create test file
+                        test_data = {"test": "connection", "timestamp": datetime.now().isoformat()}
+                        os.makedirs("data", exist_ok=True)
+                        test_file = "data/test_connection.json"
+                        with open(test_file, 'w') as f:
+                            json.dump(test_data, f)
+                        
+                        # Test folder access first
+                        st.info("Testing folder access...")
+                        try:
+                            folder_test = gdrive.service.files().get(
+                                fileId=gdrive.folder_id,
+                                fields='id,name,capabilities'
+                            ).execute()
+                            st.write(f"📁 Folder found: {folder_test.get('name')}")
+                            caps = folder_test.get('capabilities', {})
+                            if caps.get('canAddChildren'):
+                                st.success("✅ Can write to folder")
+                            else:
+                                st.error("❌ No write permission - folder not shared correctly")
+                                st.stop()
+                        except Exception as e:
+                            st.error(f"❌ Cannot access folder: {str(e)}")
+                            st.write("**Possible issues:**")
+                            st.write("- Folder ID is incorrect")
+                            st.write("- Folder not shared with service account")
+                            st.stop()
+                        
+                        # Upload test file
+                        st.info("Uploading test file...")
+                        file_id = gdrive.upload_file(test_file)
+                        
+                        if file_id:
+                            st.success("✅ Upload successful!")
+                            st.write(f"Check your Drive folder for `test_connection.json`")
+                        else:
+                            st.error("❌ Upload failed - check Streamlit logs for details")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Test failed: {str(e)}")
+                        st.code(str(e))
             else:
                 st.warning("⚠️ Google Drive Sync Disabled")
                 st.caption("Check Streamlit secrets configuration")
